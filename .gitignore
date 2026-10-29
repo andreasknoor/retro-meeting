@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+.pnp*
+
+# Next.js / build
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# env & secrets
+.env*
+!.env.example
+
+# Vercel / Convex
+.vercel/
+.convex/
+
+# misc
+.DS_Store
+*.log
+coverage/
+playwright-report/
+test-results/
