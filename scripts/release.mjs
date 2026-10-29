@@ -25,7 +25,11 @@ else next = `${major}.${minor + 1}`;
 
 pkg.version = `${next}.0`;
 writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
-run("npm install --package-lock-only --ignore-scripts --silent");
+// Edit the lockfile directly: `npm install` here breaks on user-level allow-scripts config.
+const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
+lock.version = pkg.version;
+lock.packages[""].version = pkg.version;
+writeFileSync("package-lock.json", JSON.stringify(lock, null, 2) + "\n");
 
 run("git add package.json package-lock.json");
 if (sh("git diff --cached --name-only")) run(`git commit -m "chore(release): v${next}"`);
