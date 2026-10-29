@@ -181,7 +181,7 @@ The retro page is a single vertically scrolling page with no tabs. It follows th
 Browser (Next.js client components)
    │  useQuery / useMutation  (WebSocket, managed by Convex client)
    ▼
-Convex deployment (EU region)
+Convex deployment (US region)
    ├─ queries    → reactive reads (board, pulse, actions, phase state)
    ├─ mutations  → writes with validation (ideas, votes, phase, actions)
    └─ actions    → Node runtime: password hashing (scrypt)
@@ -202,7 +202,7 @@ Next.js on Vercel (Hobby)
 | Timer | The server stores timestamps only. Clients compute the countdown, using the server-time offset from the `serverNow` query. |
 | Optimistic UI | Votes, pulse answers and new ideas use Convex optimistic updates so they feel instant. |
 | Validation | Every mutation validates its arguments with Convex `v` validators and enforces length limits, enum values and phase rules on the server. |
-| Region | The Convex deployment is created in the **EU region** (GDPR). |
+| Region | **US (aws-us-east-1)**. Decided in M0: EU carries a 30 % surcharge and is not fully covered by the free plan; acceptable for private use. |
 
 ---
 
@@ -323,13 +323,13 @@ retro-meeting/
 
 The estimates assume one developer working with an AI pair. Each milestone ends with a deployable state on Vercel.
 
-### M0 — Setup (0.5 day)
-- [ ] Create the GitHub repo and run `create-next-app` (TypeScript, Tailwind, App Router, ESLint)
-- [ ] Initialize shadcn/ui; set neutral design tokens (primary colour, card radius, font), with no corporate branding
-- [ ] Create a Vercel project linked to the GitHub repo
-- [ ] Install **Convex via the Vercel Marketplace** (`vercel integration add convex`), choose the EU region, and pull the env vars (`vercel env pull`)
-- [ ] Set the build command to `npx convex deploy --cmd 'next build'`
-- [ ] Add a CI workflow (lint, typecheck, unit tests) for pull requests
+### M0 — Setup (0.5 day) ✅ v0.1
+- [x] Create the GitHub repo and run `create-next-app` (TypeScript, Tailwind, App Router, ESLint)
+- [x] Initialize shadcn/ui; set neutral design tokens (primary colour, card radius, font), with no corporate branding
+- [x] Create a Vercel project linked to the GitHub repo
+- [x] Install **Convex via the Vercel Marketplace** (`vercel integration add convex`, free plan, US region), and pull the env vars (`vercel env pull`)
+- [x] Set the build command to `npx convex deploy --cmd 'next build'`
+- [x] Add a CI workflow (lint, typecheck, unit tests) for pull requests
 - **Done when:** a "hello" page reading from Convex is live on `*.vercel.app`.
 
 ### M1 — Retro lifecycle (1 day)
@@ -424,7 +424,7 @@ CI runs lint, typecheck, unit and backend tests on every pull request. E2E tests
 | Q5 | Can people add ideas outside the Brainstorm phase (default: yes)? | Andreas | No |
 | Q6 | Should open action items carry over into the next retro of the same team? This needs a notion of a "team" or "series" → P2. | Andreas | No |
 | Q7 | Convex free tier: check the current limits (function calls, bandwidth) and whether inactive free deployments get paused. Check whether preview deployments are available on the free plan. | Engineering | Yes, during M0 |
-| Q8 | GDPR: is the Convex EU region plus storing free-text owner names enough, or is a privacy notice / DPA needed? | Legal | Before launch |
+| Q8 | GDPR: the data is stored in the US region (private use). Is a short privacy notice still wanted? | Andreas | No |
 
 ---
 
@@ -460,7 +460,13 @@ CI runs lint, typecheck, unit and backend tests on every pull request. E2E tests
 
 ---
 
-## 15. Success Metrics
+## 15. Versioning
+
+- Versions are `MAJOR.MINOR`, starting at **0.1**; the version is shown in the app footer.
+- **Every push bumps the minor version**: `npm run release` bumps `package.json`, commits, tags `vX.Y` and pushes. A pre-push hook (`scripts/hooks/pre-push`) blocks any push whose HEAD is not tagged with the current version.
+- **Major versions only on the owner's explicit instruction** (`npm run release -- --major`).
+
+## 15b. Success Metrics
 
 | Metric | Type | Target | Measurement |
 |---|---|---|---|

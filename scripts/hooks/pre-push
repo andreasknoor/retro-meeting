@@ -1,0 +1,10 @@
+#!/bin/sh
+# Blocks pushes that do not carry a new version: HEAD must be tagged v<package.json version>.
+# Use `npm run release` instead of `git push`.
+version=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+tag="v$version"
+
+if [ "$(git rev-list -n 1 "$tag" 2>/dev/null)" != "$(git rev-parse HEAD)" ]; then
+  echo "✗ Push blocked: HEAD is not tagged $tag. Run 'npm run release' to bump the version and push."
+  exit 1
+fi
