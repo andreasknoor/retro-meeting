@@ -348,10 +348,12 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] Component tests (form, recent list, link field, retro page) and E2E: create → open as a second participant → recent list → paste link; validation; not found
 - **Done when:** I can create a retro, open it from its link, and find it again under "recent retros" in the same browser.
 
-### M2 — Phases & timer (1 day)
-- [ ] Phase state machine (`startNext`, `extend`, `endEarly`, `reset`) with transition tests
-- [ ] `serverNow` action + `useServerClock` hook; `Timer` with overtime display
-- [ ] `PhaseBar` stepper and `Agenda` card with the current-phase highlight
+### M2 — Phases & timer (1 day) ✅ v0.4
+- [x] Phase state machine (`startNext`, `extend`, `endEarly`, `reset`) with transition tests
+- [x] `serverNow` action + `useServerClock` hook; `Timer` with overtime display
+- [x] `PhaseBar` stepper and `Agenda` card with the current-phase highlight
+- [x] Stale clicks are ignored: every phase mutation carries the state the caller saw (`from`), so two people clicking "Start next" at once advance only one phase
+- [x] On mobile the phase bar is not sticky and the stepper scrolls horizontally
 - **Done when:** two browsers show the same countdown (±1 s), and either one can advance the phase.
 
 ### M3 — Pulse check (0.5 day)

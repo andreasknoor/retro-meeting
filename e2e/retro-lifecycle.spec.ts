@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// Creates real retros. In production they are prefixed "E2E" so they can be cleaned up.
+// Creates real retros. In production they are prefixed "E2E" so they can be cleaned up (see helpers.ts).
 test("create a retro, open it via link and find it under recent retros", async ({ page, context }) => {
   const name = `E2E ${Date.now()}`;
   await page.goto("/new");

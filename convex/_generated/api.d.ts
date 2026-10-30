@@ -8,9 +8,13 @@
  * @module
  */
 
+import type * as clock from "../clock.js";
 import type * as health from "../health.js";
 import type * as lib_agenda from "../lib/agenda.js";
+import type * as lib_phases from "../lib/phases.js";
+import type * as lib_retroAccess from "../lib/retroAccess.js";
 import type * as lib_validation from "../lib/validation.js";
+import type * as phase from "../phase.js";
 import type * as retros from "../retros.js";
 import type * as retrosNode from "../retrosNode.js";
 
@@ -21,9 +25,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  clock: typeof clock;
   health: typeof health;
   "lib/agenda": typeof lib_agenda;
+  "lib/phases": typeof lib_phases;
+  "lib/retroAccess": typeof lib_retroAccess;
   "lib/validation": typeof lib_validation;
+  phase: typeof phase;
   retros: typeof retros;
   retrosNode: typeof retrosNode;
 }>;

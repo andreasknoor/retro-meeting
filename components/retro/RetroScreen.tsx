@@ -2,12 +2,17 @@
 
 import { useQuery } from "convex/react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
+import { PHASE_LABELS } from "@/convex/lib/agenda";
 import { forgetRetro, rememberRetro } from "@/lib/recentRetros";
+import { AgendaCard } from "./AgendaCard";
+import { PhaseBar } from "./PhaseBar";
 import { RetroHeader } from "./RetroHeader";
+import type { Retro } from "./types";
 
 export function RetroScreen({ slug }: { slug: string }) {
   const retro = useQuery(api.retros.getBySlug, { slug });
@@ -17,24 +22,35 @@ export function RetroScreen({ slug }: { slug: string }) {
     else if (retro === null) forgetRetro(slug);
   }, [retro, slug]);
 
+  usePhaseChangeToast(retro?.state);
+
   if (retro === undefined) return <RetroLoading />;
   if (retro === null) return <RetroNotFound />;
 
   return (
     <>
       <RetroHeader {...retro} />
-      <main className="mx-auto w-full max-w-7xl px-4 py-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Board coming soon</CardTitle>
-            <CardDescription>
-              Phases, pulse check, idea board and action items arrive in the next releases.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <PhaseBar retro={retro} />
+      <main className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.25fr]">
+          <AgendaCard retro={retro} />
+        </div>
       </main>
     </>
   );
+}
+
+/** Tells everyone when the phase changes (it may have been switched by someone else). */
+function usePhaseChangeToast(state: Retro["state"] | undefined) {
+  const previous = useRef(state);
+  useEffect(() => {
+    const before = previous.current;
+    previous.current = state;
+    if (before === undefined || state === undefined || before === state) return;
+    if (state === "finished") toast("Retro finished");
+    else if (state === "not_started") toast("Retro reset · all data kept");
+    else toast(`Phase changed to ${PHASE_LABELS[state]}`);
+  }, [state]);
 }
 
 export function RetroLoading() {

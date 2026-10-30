@@ -31,7 +31,7 @@ export default defineConfig({
       // components/ is reported for information; only convex/ and lib/ are gated.
       include: ["convex/**/*.ts", "lib/**/*.ts", "components/retro/**/*.tsx"],
       exclude: ["convex/_generated/**", "**/*.test.ts",
-        "**/*.test.tsx", "convex/schema.ts", "lib/utils.ts"],
+        "**/*.test.tsx", "convex/schema.ts", "convex/test.helpers.ts", "lib/utils.ts"],
       reporter: ["text", "json-summary", "html"],
       // Release gate from IMPLEMENTATION_PLAN.md §11: backend ≥ 90 %, lib ≥ 80 %.
       thresholds: {

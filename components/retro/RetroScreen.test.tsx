@@ -6,7 +6,11 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { loadRecent, rememberRetro } from "@/lib/recentRetros";
 import { RetroScreen } from "./RetroScreen";
 
-vi.mock("convex/react", () => ({ useQuery: vi.fn() }));
+vi.mock("convex/react", () => ({
+  useQuery: vi.fn(),
+  useMutation: vi.fn(() => vi.fn()),
+  useAction: vi.fn(() => vi.fn().mockResolvedValue(Date.now())),
+}));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn() }) }));
 
 const retro = {
@@ -58,6 +62,21 @@ describe("RetroScreen", () => {
     render(<RetroScreen slug="k7f3q9xa" />);
     expect(screen.getByText("Retro not found")).toBeInTheDocument();
     await waitFor(() => expect(loadRecent()).toEqual([]));
+  });
+
+  test("announces phase changes, including ones made by others", () => {
+    vi.mocked(useQuery).mockReturnValue(retro);
+    const { rerender } = render(<RetroScreen slug="k7f3q9xa" />);
+    expect(toast).not.toHaveBeenCalled();
+    for (const [state, message] of [
+      ["vote", "Phase changed to Vote"],
+      ["finished", "Retro finished"],
+      ["not_started", "Retro reset · all data kept"],
+    ]) {
+      vi.mocked(useQuery).mockReturnValue({ ...retro, state });
+      rerender(<RetroScreen slug="k7f3q9xa" />);
+      expect(toast).toHaveBeenLastCalledWith(message);
+    }
   });
 
   test("copies the share link", async () => {
