@@ -85,8 +85,8 @@ describe("AdminScreen panel", () => {
     expect(await screen.findByText("30 min of 30 min")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
-    await user.clear(screen.getByLabelText("Discuss"));
-    await user.type(screen.getByLabelText("Discuss"), "20");
+    await user.clear(screen.getByLabelText("Discuss & Act"));
+    await user.type(screen.getByLabelText("Discuss & Act"), "20");
     expect(screen.getByText("37 min of 30 min")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("7 min longer");
 
@@ -95,8 +95,8 @@ describe("AdminScreen panel", () => {
     expect(toast.success).toHaveBeenCalledWith("Agenda times saved · updated for everyone");
 
     await user.clear(screen.getByLabelText("Vote"));
-    await user.clear(screen.getByLabelText("Discuss"));
-    await user.type(screen.getByLabelText("Discuss"), "10");
+    await user.clear(screen.getByLabelText("Discuss & Act"));
+    await user.type(screen.getByLabelText("Discuss & Act"), "10");
     expect(screen.getByText("22 min of 30 min")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("8 min shorter");
     await user.click(screen.getByRole("button", { name: "Save times" }));

@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
+import { focusArea } from "@/convex/lib/phases";
 import { SCORE_LABELS, type Score, withAnswer } from "@/convex/lib/pulse";
 import { cn } from "@/lib/utils";
 import type { Retro } from "./types";
@@ -21,7 +22,7 @@ export function PulseCard({ retro, participantId }: { retro: Retro; participantI
   const max = Math.max(1, ...(summary?.counts ?? []));
 
   return (
-    <Card className={cn(retro.state === "intro" && "ring-2 ring-primary")}>
+    <Card className={cn(focusArea(retro.state) === "pulse" && "ring-2 ring-primary")}>
       <CardHeader>
         <CardTitle className="text-xl">Pulse check</CardTitle>
         <CardDescription>How well did {retro.name} work for you?</CardDescription>

@@ -8,7 +8,7 @@ export const PHASE_LABELS: Record<Phase, string> = {
   intro: "Intro & Pulse",
   brainstorm: "Brainstorm",
   vote: "Vote",
-  discuss: "Discuss",
+  discuss: "Discuss & Act",
 };
 
 export const LENGTH_PRESETS = [30, 45, 60, 90] as const;

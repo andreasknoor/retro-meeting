@@ -362,7 +362,7 @@
 
     <div class="card" id="actionsCard">
       <div class="card-head"><h2>Action items</h2><span class="pill grey" id="actCount">None yet</span></div>
-      <div class="muted">Add an action here at any time. During the Discuss phase you can also use “Make action” on an idea. Each action needs an owner and a due date.</div>
+      <div class="muted">Add an action here at any time. During the Discuss &amp; Act phase you can also use “Make action” on an idea. Each action needs an owner and a due date.</div>
       <div class="action-form">
         <input id="a-text" class="input" placeholder="What will we do?">
         <input id="a-owner" class="input" placeholder="Owner">
@@ -434,7 +434,7 @@ const PHASES = [
   { key: 'intro', label: 'Intro & Pulse' },
   { key: 'brainstorm', label: 'Brainstorm' },
   { key: 'vote', label: 'Vote' },
-  { key: 'discuss', label: 'Discuss' },
+  { key: 'discuss', label: 'Discuss & Act' },
 ];
 const BASE = { intro: 4, brainstorm: 8, vote: 5, discuss: 13 };
 const COLS = [
@@ -726,7 +726,7 @@ function ideaHtml(i, top, colLabel, isVote, showCount) {
       ${S.retro.enabled.includes('vote') ? `<button class="vote ${mine ? 'on' : ''}" ${isVote ? '' : 'disabled title="Voting opens in the Vote phase"'} onclick="toggleVote(${i.id})">${mine ? '✓ Voted' : '+ Vote'}</button>` : ''}
       ${showCount ? `<span class="vcount">${voteCount(i)} ${voteCount(i) === 1 ? 'vote' : 'votes'}</span>` : ''}
       <span class="spacer"></span>
-      <button class="link" ${canMakeAction() ? '' : 'disabled style="opacity:.4;cursor:not-allowed" title="Available in the Discuss phase"'} onclick="makeAction(${i.id})">Make action</button>
+      <button class="link" ${canMakeAction() ? '' : 'disabled style="opacity:.4;cursor:not-allowed" title="Available in the Discuss &amp; Act phase"'} onclick="makeAction(${i.id})">Make action</button>
       ${canDelete ? `<button class="link grey" onclick="deleteIdea(${i.id})">Delete</button>` : ''}
     </div>
   </div>`;

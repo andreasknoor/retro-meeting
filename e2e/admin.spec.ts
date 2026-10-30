@@ -30,7 +30,7 @@ test("admin: auto-login, re-login, agenda times, delete any idea, delete retro l
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page.getByText("Agenda times", { exact: true })).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole("spinbutton", { name: "Discuss" }).fill("15");
+  await page.getByRole("spinbutton", { name: "Discuss & Act" }).fill("15");
   await expect(page.getByText("32 min of 30 min")).toBeVisible();
   await page.getByRole("button", { name: "Save times" }).click();
   await expect(guest.getByRole("list", { name: "Phases" })).toContainText("15 min");

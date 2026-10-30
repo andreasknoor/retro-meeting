@@ -74,6 +74,15 @@ const texts = (name: string) =>
     .map((li) => li.querySelector("p")!.firstChild!.textContent);
 
 describe("IdeaBoard", () => {
+  test.each([
+    ["brainstorm", true],
+    ["vote", true],
+    ["discuss", false],
+  ] as const)("is highlighted in %s: %s", (state, highlighted) => {
+    const { container } = render(<IdeaBoard retro={{ ...retro, state }} participantId="me-000000" onMakeAction={vi.fn()} />);
+    expect(container.querySelector('[data-slot="card"]')!.classList.contains("ring-2")).toBe(highlighted);
+  });
+
   test("shows ideas per column in creation order before voting", () => {
     render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     expect(texts("Keep")).toEqual(["Short stand-ups", "Pairing"]);

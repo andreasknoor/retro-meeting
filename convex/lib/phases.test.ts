@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Phase } from "./agenda";
-import { backDiscardsVotes, canMakeActionFromIdea, hasReached, nextState, phaseIndex, previousPhase, schedule } from "./phases";
+import { backDiscardsVotes, canMakeActionFromIdea, focusArea, hasReached, nextState, phaseIndex, previousPhase, schedule } from "./phases";
 
 const ALL: Phase[] = ["intro", "brainstorm", "vote", "discuss"];
 const NO_VOTE: Phase[] = ["intro", "brainstorm", "discuss"];
@@ -75,4 +75,13 @@ test("backDiscardsVotes only when leaving the Vote phase backwards", () => {
   expect(backDiscardsVotes("discuss", NO_VOTE)).toBe(false);
   expect(backDiscardsVotes("finished", ["brainstorm", "vote"])).toBe(false);
   expect(backDiscardsVotes("vote", ["vote", "brainstorm"])).toBe(true);
+});
+
+test("focusArea highlights one card per phase", () => {
+  expect(focusArea("not_started")).toBeNull();
+  expect(focusArea("intro")).toBe("pulse");
+  expect(focusArea("brainstorm")).toBe("board");
+  expect(focusArea("vote")).toBe("board");
+  expect(focusArea("discuss")).toBe("actions");
+  expect(focusArea("finished")).toBeNull();
 });

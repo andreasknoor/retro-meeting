@@ -56,7 +56,7 @@ test("a complete retro with three participants through all phases", async ({ pag
   await expect(cards(alex, "Keep").first()).toContainText("2 votes");
 
   // 4) Discuss: the top idea becomes an action; Bob adds a free-text action
-  await alex.getByRole("button", { name: "Start Discuss" }).click();
+  await alex.getByRole("button", { name: "Start Discuss & Act" }).click();
   await cards(alex, "Keep").first().getByRole("button", { name: "Make action" }).click();
   const form = (p: Page) => p.getByRole("form", { name: "New action" });
   await form(alex).getByLabel("Owner").fill("Alex");

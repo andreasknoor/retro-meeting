@@ -47,7 +47,7 @@ test("one vote per column, movable, and columns re-rank live", async ({ page, br
   await expect(cards(guest, "Keep").filter({ hasText: "Pairing" })).toContainText("1 vote");
 
   // After the Vote phase the buttons lock but the ranking stays.
-  await page.getByRole("button", { name: "Start Discuss" }).click();
+  await page.getByRole("button", { name: "Start Discuss & Act" }).click();
   await expect(cards(guest, "Keep").first().getByRole("button", { name: "✓ Voted" })).toBeDisabled();
   await expect(cards(guest, "Keep").first()).toContainText("Pairing");
 

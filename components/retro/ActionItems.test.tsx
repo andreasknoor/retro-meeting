@@ -37,6 +37,15 @@ async function fill(user: ReturnType<typeof userEvent.setup>, text: string | nul
 }
 
 describe("ActionItems", () => {
+  test.each([
+    ["discuss", true],
+    ["vote", false],
+    ["finished", false],
+  ] as const)("is highlighted in %s: %s", (state, highlighted) => {
+    const { container } = render(<ActionItems retro={{ ...retro, state }} draft={null} onClearDraft={vi.fn()} />);
+    expect(container.querySelector('[data-slot="card"]')!.classList.contains("ring-2")).toBe(highlighted);
+  });
+
   test("lists actions with owner, due date and origin", () => {
     render(<ActionItems retro={retro} draft={null} onClearDraft={vi.fn()} />);
     expect(screen.getByText("2 actions")).toBeInTheDocument();
@@ -97,12 +106,12 @@ describe("ActionItems", () => {
 
   test("shows server errors when adding fails", async () => {
     const user = userEvent.setup();
-    mutations["actions:add"].mockRejectedValueOnce(new ConvexError("Ideas can only become actions during the Discuss phase."));
+    mutations["actions:add"].mockRejectedValueOnce(new ConvexError("Ideas can only become actions during the Discuss & Act phase."));
     mutations["actions:add"].mockRejectedValueOnce(new Error("network"));
     render(<ActionItems retro={retro} draft={null} onClearDraft={vi.fn()} />);
     await fill(user, "X", "Y", "2026-12-01");
     await user.click(within(form()).getByRole("button", { name: "Add action" }));
-    expect(toast.error).toHaveBeenCalledWith("Ideas can only become actions during the Discuss phase.");
+    expect(toast.error).toHaveBeenCalledWith("Ideas can only become actions during the Discuss & Act phase.");
     await user.click(within(form()).getByRole("button", { name: "Add action" }));
     expect(toast.error).toHaveBeenCalledWith("Could not add the action.");
   });

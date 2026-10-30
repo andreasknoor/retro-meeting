@@ -9,8 +9,10 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
 import { COLUMN_META } from "@/convex/lib/columns";
+import { focusArea } from "@/convex/lib/phases";
 import { ACTION_LIMITS } from "@/convex/lib/validation";
 import { formatDueDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { ActionDraft, ActionItem, Retro } from "./types";
 
 type Props = { retro: Retro; draft: ActionDraft | null; onClearDraft: () => void };
@@ -24,11 +26,11 @@ export function ActionItems({ retro, draft, onClearDraft }: Props) {
   const count = actions?.length ?? 0;
 
   return (
-    <Card>
+    <Card className={cn(focusArea(retro.state) === "actions" && "ring-2 ring-primary")}>
       <CardHeader>
         <CardTitle className="text-xl">Action items</CardTitle>
         <CardDescription>
-          Add an action here at any time. During the Discuss phase you can also use “Make action” on an idea. Each
+          Add an action here at any time. During the Discuss & Act phase you can also use “Make action” on an idea. Each
           action needs an owner and a due date.
         </CardDescription>
         <CardAction className="rounded-full border bg-muted px-3 py-1 text-xs font-bold tracking-wide text-muted-foreground uppercase">

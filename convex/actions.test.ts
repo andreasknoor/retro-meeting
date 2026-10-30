@@ -42,7 +42,7 @@ describe("actions.add", () => {
     const { t, slug, ideaId, goTo, action } = await setup();
     await goTo("vote");
     await expect(t.mutation(api.actions.add, { ...action, ideaId })).rejects.toThrow(
-      "Ideas can only become actions during the Discuss phase.",
+      "Ideas can only become actions during the Discuss & Act phase.",
     );
     await goTo("discuss");
     await t.mutation(api.actions.add, { ...action, ideaId });
@@ -53,7 +53,7 @@ describe("actions.add", () => {
   test("without a Discuss phase, ideas become actions after the end", async () => {
     const { t, ideaId, goTo, action } = await setup(["brainstorm", "vote"]);
     await goTo("vote");
-    await expect(t.mutation(api.actions.add, { ...action, ideaId })).rejects.toThrow("Discuss phase");
+    await expect(t.mutation(api.actions.add, { ...action, ideaId })).rejects.toThrow("Discuss & Act phase");
     await goTo("finished");
     await expect(t.mutation(api.actions.add, { ...action, ideaId })).resolves.toBeDefined();
   });

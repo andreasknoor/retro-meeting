@@ -81,7 +81,7 @@ describe("PhaseBar", () => {
     await user.click(screen.getByRole("button", { name: "Back to Vote" }));
     expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "back", "discuss", undefined);
     rerender(<PhaseBar retro={{ ...base, state: "finished" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
-    expect(screen.getByRole("button", { name: "Back to Discuss" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Back to Discuss & Act" })).toBeEnabled();
   });
 
   test("warns before going back past Vote when there are votes", async () => {
@@ -113,7 +113,7 @@ describe("PhaseBar", () => {
 
   test("ended early: shows Ended and still offers the next phase", () => {
     render(<PhaseBar retro={{ ...base, state: "discuss" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
-    expect(timer()).toHaveTextContent("DiscussEnded");
+    expect(timer()).toHaveTextContent("Discuss & ActEnded");
     expect(screen.getByRole("button", { name: "Finish retro" })).toBeInTheDocument();
   });
 
@@ -198,7 +198,7 @@ describe("AgendaCard", () => {
       "0:00Intro & Pulse4 min",
       "0:04Brainstorm8 min",
       "0:12Vote5 min",
-      "0:17Discuss13 min",
+      "0:17Discuss & Act13 min",
     ]);
     expect(rows[2]).toHaveAttribute("aria-current", "step");
   });

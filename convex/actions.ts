@@ -84,7 +84,7 @@ export const add = mutation({
       const idea = await ctx.db.get("ideas", ideaId);
       if (!idea || idea.retroId !== retro._id) throw new ConvexError("This idea was deleted.");
       if (!canMakeActionFromIdea(retro.state, retro.enabledPhases))
-        throw new ConvexError("Ideas can only become actions during the Discuss phase.");
+        throw new ConvexError("Ideas can only become actions during the Discuss & Act phase.");
     }
     return await ctx.db.insert("actions", { retroId: retro._id, ideaId, ...fields });
   },

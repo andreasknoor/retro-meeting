@@ -8,7 +8,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { type Column, COLUMN_META, COLUMNS, normalizeInitials } from "@/convex/lib/columns";
-import { canMakeActionFromIdea, hasReached } from "@/convex/lib/phases";
+import { canMakeActionFromIdea, focusArea, hasReached } from "@/convex/lib/phases";
 import { applyVoteToggle, loadInitials, saveInitials, sortIdeas, topIdea } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
 import { IdeaCard } from "./IdeaCard";
@@ -95,7 +95,7 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
   }
 
   return (
-    <Card>
+    <Card className={cn(focusArea(state) === "board" && "ring-2 ring-primary")}>
       <CardHeader>
         <CardTitle className="text-xl">Idea board</CardTitle>
         <CardDescription>{boardHint(state, votingOn, byVotes)}</CardDescription>
@@ -168,7 +168,7 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
                         <button
                           type="button"
                           disabled={!canMakeAction}
-                          title={canMakeAction ? undefined : "Available in the Discuss phase"}
+                          title={canMakeAction ? undefined : "Available in the Discuss & Act phase"}
                           onClick={() => onMakeAction(idea)}
                           className="text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40"
                         >

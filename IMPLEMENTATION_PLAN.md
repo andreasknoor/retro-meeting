@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** ✅ Released as **v1.0** on 2026-10-30 (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.1** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -8,7 +8,7 @@
 
 ## 1. Summary
 
-A lightweight web app for running team retrospectives with many participants in real time. Anyone can create a retro and share it via a link, and participants join without logging in. A retro runs through up to four phases: **Intro & Pulse Check → Brainstorm → Vote → Discuss**. A synchronized phase timer guides the group. Ideas, votes and action items appear live for everyone, and the whole retro lives on a single page. Past retros stay accessible. A small admin area, protected by a password set per retro, lets you change agenda times and delete retros.
+A lightweight web app for running team retrospectives with many participants in real time. Anyone can create a retro and share it via a link, and participants join without logging in. A retro runs through up to four phases: **Intro & Pulse Check → Brainstorm → Vote → Discuss & Act**. A synchronized phase timer guides the group. Ideas, votes and action items appear live for everyone, and the whole retro lives on a single page. Past retros stay accessible. A small admin area, protected by a password set per retro, lets you change agenda times and delete retros.
 
 **Stack:** Next.js (App Router, TypeScript) + Convex (reactive database & realtime) on Vercel (Hobby plan), with the source code on GitHub.
 
@@ -69,9 +69,9 @@ After creation the app redirects to `/r/<slug>` and shows a **"Copy link"** butt
 | 1 | Intro & Pulse Check | 4 min | Set the goal, everyone rates the period 1–5 |
 | 2 | Brainstorm | 8 min | Add ideas to Keep / Fix / Try |
 | 3 | Vote | 5 min | One vote per person per column |
-| 4 | Discuss | 13 min | Discuss the top ideas, turn them into action items |
+| 4 | Discuss & Act | 13 min | Discuss the top ideas, turn them into action items |
 
-- **Default for other lengths:** the times are scaled proportionally from the 30-minute template and rounded to whole minutes. Any rounding remainder goes to Discuss.
+- **Default for other lengths:** the times are scaled proportionally from the 30-minute template and rounded to whole minutes. Any rounding remainder goes to Discuss & Act.
 - Disabled phases are left out of the agenda, and their time is redistributed proportionally to the remaining phases.
 - The agenda card shows each phase's **start offset** (0:00, 0:04, …) and its duration, and highlights the current phase.
 - **Admin:** only the durations can be edited. The app shows a warning, but does not block saving, if the total differs from the retro length.
@@ -81,6 +81,7 @@ After creation the app redirects to `/r/<slug>` and shows a **"Copy link"** butt
 ### 4.3 Phase bar & timer
 A sticky bar below the header contains:
 - **Phase stepper:** done phases show ✓, the current one is highlighted, and each shows its planned minutes.
+- **Focus card (v1.1):** the card people work in during the current phase gets a ring: the pulse check in Intro, the idea board in Brainstorm and Vote, the action items in Discuss & Act. Exactly one card at a time; none before the start or after the end.
 - **Countdown** (mm:ss) for the current phase. When it reaches 0:00, it turns red and counts the overtime up (`+01:23`). **It never advances automatically.**
 - **Buttons** (only for the admin by default; for everyone if the retro allows it — see §4.1):
   - `← Back` returns to the previous enabled phase (from Finished to the last phase); disabled before the start and in the first phase. **[DEFAULT]** The earlier phase restarts with its full planned duration. Ideas, pulse answers and actions are kept; going back to Vote reopens voting with the votes kept. **Going back before the Vote phase deletes all votes** (decision after v0.12): if there are votes, an inline warning ("Going back to Brainstorm deletes all votes.") must be confirmed first; the server refuses without that confirmation
@@ -109,7 +110,7 @@ A sticky bar below the header contains:
   - from the Vote phase on: by vote count (highest first), with ties broken by creation time; the top idea in each column gets a "Top in Keep" badge
 - **Actions on each idea:**
   - `Vote` / `✓ Voted`, enabled only during the Vote phase
-  - `Make action`, enabled **only in the Discuss phase** (outside it, the button is shown disabled with the tooltip "Available in the Discuss phase")
+  - `Make action`, enabled **only in the Discuss phase** (outside it, the button is shown disabled with the tooltip "Available in the Discuss & Act phase")
   - `Delete`, visible only to the idea's author (same `participantId`) or to an admin
 - **[DEFAULT]** You can add ideas in every phase, not only during Brainstorm, because "anyone can switch" makes strict phase locking unhelpful. Outside Brainstorm the input is visually de-emphasized.
 - **[DEFAULT]** Editing an idea is not in v1. Delete it and add it again instead.
@@ -413,6 +414,9 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] README (local dev, tests, releases, env vars, security notes)
 - [x] Old E2E test retros from before v0.9 removed from production (60 retros with all their data, via the admin delete flow; owner-approved)
 - **Done when:** the acceptance checklist in §10 passes on production. ✅
+
+### Post-1.0 changes
+- [x] v1.1: the card people work in is highlighted per phase (pulse in Intro, idea board in Brainstorm and Vote, action items in Discuss & Act; nothing before the start or after the end; `focusArea` in `convex/lib/phases.ts`). The Discuss phase is now labelled **"Discuss & Act"** (display label only; the internal key stays `discuss`)
 
 **Total: about 9.5 working days.**
 

@@ -38,6 +38,23 @@ export function canMakeActionFromIdea(state: RetroState, enabled: readonly Phase
   return enabled.includes("discuss") ? state === "discuss" : state === "finished";
 }
 
+export type FocusArea = "pulse" | "board" | "actions";
+
+/** The card people work in during the current phase; it gets highlighted. None before the start and after the end. */
+export function focusArea(state: RetroState): FocusArea | null {
+  switch (state) {
+    case "intro":
+      return "pulse";
+    case "brainstorm":
+    case "vote":
+      return "board";
+    case "discuss":
+      return "actions";
+    default:
+      return null;
+  }
+}
+
 export type ScheduleRow = { phase: Phase; startMin: number; minutes: number };
 
 /** Agenda rows with their start offsets in minutes. */

@@ -29,7 +29,7 @@ test("free-text actions anytime, Make action only in Discuss, visible to everyon
   await expect(idea.getByRole("button", { name: "Make action" })).toBeDisabled();
 
   await page.getByRole("button", { name: "Start Brainstorm" }).click();
-  await page.getByRole("button", { name: "Start Discuss" }).click();
+  await page.getByRole("button", { name: "Start Discuss & Act" }).click();
   await idea.getByRole("button", { name: "Make action" }).click();
 
   await expect(actionForm(page).getByLabel("Action")).toHaveValue("Flaky tests");

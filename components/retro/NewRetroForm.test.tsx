@@ -32,10 +32,10 @@ describe("NewRetroForm", () => {
     const user = userEvent.setup();
     render(<NewRetroForm />);
     const agenda = screen.getByRole("list", { name: "Agenda preview" });
-    expect(within(agenda).getByText("Discuss · 13 min")).toBeInTheDocument();
+    expect(within(agenda).getByText("Discuss & Act · 13 min")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "60 min" }));
-    expect(within(agenda).getByText("Discuss · 26 min")).toBeInTheDocument();
+    expect(within(agenda).getByText("Discuss & Act · 26 min")).toBeInTheDocument();
 
     await user.click(screen.getByLabelText("Vote"));
     expect(within(agenda).queryByText(/^Vote/)).not.toBeInTheDocument();
