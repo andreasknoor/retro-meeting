@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.3** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.5** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -89,15 +89,16 @@ A sticky bar below the header contains:
   - `+1 min` extends the current phase
   - `End early` ends the current phase without starting the next one; the timer stops and the bar shows `Start <next phase>`
   - `Reset` sets the retro back to `not_started` but keeps all data (asks for confirmation inline, not in a browser dialog)
-- **Locked for participants:** they see the timer and the stepper, plus the hint "The facilitator controls the phases." and a **"Log in to control"** button that opens an inline password field (same login, lockout and session as the admin area). The server rejects phase mutations without a valid admin session ("Only the admin can switch phases.").
+- **Locked for participants:** they see the timer and the stepper, plus the hint "Only the admin can switch phases." (v1.5; before: "The facilitator controls the phases.") and a **"Log in to control"** button that opens an inline password field (same login, lockout and session as the admin area). The server rejects phase mutations without a valid admin session ("Only the admin can switch phases.").
 - **Sync model:** the server stores `phaseStartedAt` and `phaseDurationSec`, and each client computes the remaining time itself. No server-side ticking is needed, and clients stay in sync up to differences in device clocks. These differences are compensated by a server-time offset measured when the page loads.
 
 ### 4.4 Pulse check
-- The question reads: *"How well did {retro name} work for you?"*
+- The question reads: *"How did the time since the last retro go for you?"* (v1.5; it used to ask about the retro itself)
 - Five buttons: 1 Bad · 2 Poor · 3 Okay · 4 Good · 5 Great.
 - One answer per `participantId`. Tapping another number changes the answer.
 - The results panel shows the **average (1 decimal place)**, **the number of respondents**, and a bar per score with its count. Your own choice is highlighted, and a badge says "You answered 3".
 - Answers are **anonymous**: nobody can see who gave which score.
+- **v1.5:** until you answer (or the Intro phase is over), the panel shows only how many have answered; average and distribution are not even sent, so they cannot anchor your answer.
 - **[DEFAULT]** You can answer in every phase. The card is visually emphasized during Intro.
 - If the Intro phase is disabled, the pulse check card is hidden.
 
@@ -131,10 +132,10 @@ A sticky bar below the header contains:
   - free text typed directly into the form, **possible in every phase** (including `not_started` and `finished`)
 - **[DEFAULT]** If the Discuss phase is disabled for a retro, `Make action` becomes available once the retro is `finished`.
 - The server enforces this: `actions.add` with an `ideaId` is rejected unless the retro is in the `discuss` state (or `finished` when Discuss is disabled).
-- **Required fields:** text, **owner** (free text), **due date** (date picker, shown as dd.mm.yyyy). `Add action` stays disabled until all three are filled.
+- **Required fields:** text and **owner** (free text). The **due date** (date picker, shown as dd.mm.yyyy) is optional since v1.5 and cannot be in the past (an existing overdue date may stay when editing). `Add action` stays disabled until text and owner are filled.
 - An action created from an idea links back to it: the idea shows an "→ Action" badge, and the action shows "from Fix: …".
-- Everyone can edit actions (inline); only the participant who added an action, or the admin, can delete it (v1.3).
-- The list is sorted by due date, then by creation time.
+- Everyone can edit actions (inline); only the participant who added an action, or the admin, can delete it (v1.3), after an inline confirmation (v1.5).
+- The list is sorted by due date, then by creation time; actions without a due date come last.
 
 ### 4.8 Home page (no public overview)
 - **Decision Q1: link-only.** There is no list of all retros anywhere in the app.
@@ -288,7 +289,7 @@ loginAttempts: defineTable({
 | `ideas.ts` | `listByRetro` | query | Sorting depends on state; returns `isMine` / `votedByMe` |
 | | `add`, `remove` | mutation | Length limits; `remove` requires the author or an admin |
 | `votes.ts` | `toggle` | mutation | Only in the `vote` state; one per column |
-| `actions.ts` | `list`, `add`, `update`, `remove` | query / mutation | Owner and due date required; `add` with `ideaId` only in Discuss |
+| `actions.ts` | `list`, `add`, `update`, `remove` | query / mutation | Owner required, due date optional and not in the past; `add` with `ideaId` only in Discuss |
 | `admin.ts` | `login` | action | scrypt verify, rate limit, issues the token |
 | | `logout`, `validate` | mutation / query | |
 | `crons.ts` | `purgeExpiredSessions` | cron (daily) | Cleans up sessions and login attempts |
@@ -404,7 +405,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] `phase.back` with the same admin lock and stale-click guard (`from`) as the other phase controls
 - [x] `← Back` button in the phase bar (label "Back to <phase>")
 - [x] Tests: state helper, backend (disabled phases, finished, votes kept and voting reopened), component, E2E
-- [x] v0.13: going back before Vote deletes all votes after an inline warning (only shown when votes exist); `retros.getBySlug` returns `hasVotes`
+- [x] v0.13: going back before Vote deletes all votes after an inline warning (only shown when votes exist); `retros.getBySlug` returns `hasVotes` (v1.5: derived on the client from `ideas.list` instead, so `getBySlug` no longer re-runs on votes)
 
 ### M8 — Polish, QA & launch (1.5 days) ✅ v0.14–v0.15, launched as v1.0
 - [x] Responsive pass, keyboard navigation, focus states, ARIA labels on vote and score buttons; automated axe-core WCAG 2.1 AA check in E2E (fixed: header and stepper contrast, focusable scroll region)
@@ -418,6 +419,8 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 ### Post-1.0 changes
 - [x] v1.1: the card people work in is highlighted per phase (pulse in Intro, idea board in Brainstorm and Vote, action items in Discuss & Act; nothing before the start or after the end; `focusArea` in `convex/lib/phases.ts`). The Discuss phase is now labelled **"Discuss & Act"** (display label only; the internal key stays `discuss`)
 - [x] v1.3 (security review): global limit on new retros (60/hour, checked before hashing) and a per-browser write limit (60/minute, burst 30) via `@convex-dev/rate-limiter` (`convex/lib/rateLimits.ts`); per-retro caps were tried and dropped because any counter shared by a retro made 30 simultaneous voters wait for seconds (load test), so the board instead says when its list is cut off at 300 ideas. Only the author or the admin can delete an action (`admin.removeAction`). 12-character slugs; `getManyBySlugs` takes at most 20. Security headers (CSP with `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`). GitHub workflows run with read-only tokens
+- [x] v1.4: live URL moved to https://retro-meeting.andreasknoor.com
+- [x] v1.5 (backlog items): pulse results hidden until you answer or the Intro phase is over; pulse question asks about the period, not the retro; the phase lock says "Only the admin can switch phases."; the board hint explains that ideas added during Vote may miss votes and those added later get none; action due dates are optional and cannot be in the past; deleting an action asks inline first. Agenda changes move the running phase's timer by the difference (keeping "+1 min" extensions), and header and agenda card show the actual agenda total. The admin agenda form shows changes from other tabs unless it has unsaved edits ("Unsaved changes", Discard; Save only when changed). `getBySlug` reads only the retro document (whether anyone voted comes from `ideas.list`); a vote flag on the retro was tried and dropped because the first votes all conflicted on it (load test). The board and the pulse card say when vote counts or answers are cut off at 3000 / 500
 
 **Total: about 9.5 working days.**
 

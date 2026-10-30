@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, type MutationCtx } from "./_generated/server";
 import { adminRetro } from "./lib/adminAuth";
+import { IDEA_LIMITS } from "./lib/columns";
 import { backDiscardsVotes, nextState, previousPhase } from "./lib/phases";
 import { getRetroOrThrow } from "./lib/retroAccess";
 import { stateValidator } from "./schema";
@@ -11,8 +12,6 @@ import { stateValidator } from "./schema";
 // Every mutation takes the state the caller saw (`from`); if someone else switched first, the
 // click is ignored instead of skipping a phase.
 
-// 3 votes per participant; far above any real retro, keeps the deletion in one transaction.
-const MAX_VOTES_PER_RETRO = 3000;
 
 async function controllableRetro(ctx: MutationCtx, slug: string, token: string | undefined): Promise<Doc<"retros">> {
   const retro = await getRetroOrThrow(ctx, slug);
@@ -58,7 +57,7 @@ export const back = mutation({
       const votes = await ctx.db
         .query("votes")
         .withIndex("by_retroId_and_participantId_and_column", (q) => q.eq("retroId", retro._id))
-        .take(MAX_VOTES_PER_RETRO);
+        .take(IDEA_LIMITS.votesPerRetro);
       if (votes.length > 0 && !discardVotes) throw new ConvexError("Going back deletes all votes. Please confirm.");
       for (const vote of votes) await ctx.db.delete("votes", vote._id);
     }

@@ -5,7 +5,11 @@ test("pulse answers update live and changing an answer does not double-count", a
   const url = await newRetro(page);
   const guest = await joinAsGuest(browser, url);
 
+  // Until you answer, you only see how many have answered, not their scores.
   await page.getByRole("button", { name: /^4\s*Good$/ }).click();
+  await expect(guest.getByText("1 person has answered")).toBeVisible();
+  await expect(guest.getByText(/Results show once you have answered/)).toBeVisible();
+  await expect(guest.getByText("4.0", { exact: true })).toHaveCount(0);
   await guest.getByRole("button", { name: /^2\s*Poor$/ }).click();
 
   for (const p of [page, guest]) {

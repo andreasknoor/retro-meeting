@@ -78,7 +78,7 @@ export default defineSchema({
     ideaId: v.optional(v.id("ideas")), // set when created with "Make action"
     text: v.string(),
     owner: v.string(),
-    dueDate: v.string(), // ISO date
+    dueDate: v.string(), // ISO date; "" = no due date (optional since v1.5)
     // Participant who added it; may delete it (besides the admin). Missing on actions before v1.3.
     authorId: v.optional(v.string()),
   })

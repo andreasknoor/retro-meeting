@@ -88,7 +88,10 @@ export const logout = mutation({
 
 export const MAX_PHASE_MINUTES = 120;
 
-/** Only the durations can change (§4.9); disabled phases stay at 0. */
+/**
+ * Only the durations can change (§4.9); disabled phases stay at 0. A running timer moves by the
+ * change of the current phase, so time already added with "+1 min" is kept.
+ */
 export const updateAgenda = mutation({
   args: { slug: v.string(), token: v.string(), agenda: agendaValidator },
   returns: v.null(),
@@ -102,7 +105,14 @@ export const updateAgenda = mutation({
       }
       next[phase] = minutes;
     }
-    await ctx.db.patch("retros", retro._id, { agenda: next });
+    const state = retro.state;
+    const running = state !== "not_started" && state !== "finished" && retro.phaseDurationSec !== undefined;
+    await ctx.db.patch("retros", retro._id, {
+      agenda: next,
+      ...(running && {
+        phaseDurationSec: Math.max(0, retro.phaseDurationSec! + (next[state] - retro.agenda[state]) * 60),
+      }),
+    });
     return null;
   },
 });

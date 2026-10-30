@@ -60,11 +60,11 @@ test("a complete retro with three participants through all phases", async ({ pag
   await cards(alex, "Keep").first().getByRole("button", { name: "Make action" }).click();
   const form = (p: Page) => p.getByRole("form", { name: "New action" });
   await form(alex).getByLabel("Owner").fill("Alex");
-  await form(alex).getByLabel("Due date").fill("2026-11-15");
+  await form(alex).getByLabel("Due date").fill("2099-11-15");
   await form(alex).getByRole("button", { name: "Add action" }).click();
   await form(bob).getByLabel("Action").fill("Fix the flaky checkout test");
   await form(bob).getByLabel("Owner").fill("Bob");
-  await form(bob).getByLabel("Due date").fill("2026-11-10");
+  await form(bob).getByLabel("Due date").fill("2099-11-10");
   await form(bob).getByRole("button", { name: "Add action" }).click();
 
   // 5) Finish: everyone sees the same result
@@ -72,8 +72,8 @@ test("a complete retro with three participants through all phases", async ({ pag
   for (const p of everyone) {
     await expect(p.getByRole("timer")).toContainText("Finished");
     await expect(p.getByRole("list", { name: "Actions" }).getByRole("listitem")).toHaveText([
-      /Fix the flaky checkout test.*Bob.*10\.11\.2026/,
-      /Pairing on bugs.*from Keep.*Alex.*15\.11\.2026/,
+      /Fix the flaky checkout test.*Bob.*10\.11\.2099/,
+      /Pairing on bugs.*from Keep.*Alex.*15\.11\.2099/,
     ]);
   }
 

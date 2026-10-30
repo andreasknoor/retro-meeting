@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PHASE_LABELS } from "@/convex/lib/agenda";
+import { agendaTotal, PHASE_LABELS } from "@/convex/lib/agenda";
 import { phaseIndex, schedule } from "@/convex/lib/phases";
 import { formatOffset } from "@/lib/timer";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,7 @@ export function AgendaCard({ retro }: { retro: Retro }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl">{retro.lengthMin}-minute agenda</CardTitle>
+        <CardTitle className="text-xl">{agendaTotal(retro.agenda, retro.enabledPhases)}-minute agenda</CardTitle>
       </CardHeader>
       <CardContent>
         <ol className="grid gap-1">

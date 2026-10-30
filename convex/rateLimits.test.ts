@@ -36,7 +36,7 @@ describe("rate limits", () => {
       t.mutation(api.ideas.add, { slug, participantId: participant(1), column: "keep", text: "More", initials: "" }),
     ).rejects.toThrow("You're going too fast.");
     await expect(
-      t.mutation(api.actions.add, { slug, participantId: participant(1), text: "More", owner: "A", dueDate: "2026-11-01" }),
+      t.mutation(api.actions.add, { slug, participantId: participant(1), text: "More", owner: "A", dueDate: "2099-11-01" }),
     ).rejects.toThrow("You're going too fast.");
     // Refills over time.
     vi.advanceTimersByTime(5_000);

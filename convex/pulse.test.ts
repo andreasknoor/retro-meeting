@@ -23,8 +23,21 @@ describe("pulse", () => {
       total: 2,
       average: 3.5,
       mine: 4,
+      revealed: true,
     });
-    expect((await t.query(api.pulse.summary, { slug, participantId: "carol-0000" }))!.mine).toBeNull();
+  });
+
+  test("hides the results until you answer or the Intro phase is over", async () => {
+    const { t, slug } = await setup();
+    await t.mutation(api.pulse.answer, { slug, participantId: ALICE, score: 4 });
+    await t.mutation(api.pulse.answer, { slug, participantId: BOB, score: 1 });
+    const carol = () => t.query(api.pulse.summary, { slug, participantId: "carol-0000" });
+    expect(await carol()).toEqual({ counts: [0, 0, 0, 0, 0], total: 2, average: null, mine: null, revealed: false });
+
+    await t.mutation(api.phase.startNext, { slug, from: "not_started" });
+    expect((await carol())!.revealed).toBe(false);
+    await t.mutation(api.phase.startNext, { slug, from: "intro" });
+    expect(await carol()).toMatchObject({ counts: [1, 0, 0, 1, 0], average: 2.5, mine: null, revealed: true });
   });
 
   test("changing an answer does not double-count", async () => {

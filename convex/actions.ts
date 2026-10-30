@@ -12,8 +12,11 @@ export const MAX_ACTIONS = 200;
 
 type ActionFields = { text: string; owner: string; dueDate: string };
 
-/** Trims and validates; every action needs text, an owner and a due date (§4.7). */
-function cleanFields({ text, owner, dueDate }: ActionFields): ActionFields {
+/**
+ * Trims and validates; every action needs text and an owner, the due date is optional (§4.7).
+ * A new due date may not be in the past; one day of slack covers every time zone.
+ */
+function cleanFields({ text, owner, dueDate }: ActionFields, previousDueDate?: string): ActionFields {
   const fields = { text: text.trim(), owner: owner.trim(), dueDate };
   if (!fields.text) throw new ConvexError("Describe the action.");
   if (fields.text.length > ACTION_LIMITS.text)
@@ -21,7 +24,10 @@ function cleanFields({ text, owner, dueDate }: ActionFields): ActionFields {
   if (!fields.owner) throw new ConvexError("Every action needs an owner.");
   if (fields.owner.length > ACTION_LIMITS.owner)
     throw new ConvexError(`The owner can have at most ${ACTION_LIMITS.owner} characters.`);
-  if (!isIsoDate(dueDate)) throw new ConvexError("Every action needs a valid due date.");
+  if (dueDate !== "" && !isIsoDate(dueDate)) throw new ConvexError("The due date is invalid.");
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (dueDate !== "" && dueDate !== previousDueDate && dueDate < yesterday)
+    throw new ConvexError("The due date is in the past.");
   return fields;
 }
 
@@ -32,7 +38,7 @@ async function actionsOf(ctx: QueryCtx, retroId: Id<"retros">): Promise<Doc<"act
     .take(MAX_ACTIONS);
 }
 
-/** Sorted by due date, then creation. */
+/** Sorted by due date (actions without one last), then creation. */
 export const list = query({
   args: { slug: v.string(), participantId: v.string() },
   returns: v.array(
@@ -64,7 +70,8 @@ export const list = query({
         };
       }),
     );
-    return rows.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.createdAt - b.createdAt);
+    const key = (dueDate: string) => dueDate || "9999-12-31";
+    return rows.sort((a, b) => key(a.dueDate).localeCompare(key(b.dueDate)) || a.createdAt - b.createdAt);
   },
 });
 
@@ -100,9 +107,9 @@ export const update = mutation({
   args: { actionId: v.id("actions"), text: v.string(), owner: v.string(), dueDate: v.string() },
   returns: v.null(),
   handler: async (ctx, { actionId, ...input }) => {
-    const fields = cleanFields(input);
-    if (!(await ctx.db.get("actions", actionId))) throw new ConvexError("This action was deleted.");
-    await ctx.db.patch("actions", actionId, fields);
+    const action = await ctx.db.get("actions", actionId);
+    if (!action) throw new ConvexError("This action was deleted.");
+    await ctx.db.patch("actions", actionId, cleanFields(input, action.dueDate));
     return null;
   },
 });

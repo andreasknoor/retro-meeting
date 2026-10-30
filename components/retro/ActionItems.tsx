@@ -11,7 +11,7 @@ import { api } from "@/convex/_generated/api";
 import { COLUMN_META } from "@/convex/lib/columns";
 import { focusArea } from "@/convex/lib/phases";
 import { ACTION_LIMITS } from "@/convex/lib/validation";
-import { formatDueDate } from "@/lib/format";
+import { formatDueDate, todayIso } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ActionDraft, ActionItem, Retro } from "./types";
 
@@ -38,7 +38,7 @@ export function ActionItems({ retro, participantId, draft, onClearDraft, onAdmin
         <CardTitle className="text-xl">Action items</CardTitle>
         <CardDescription>
           Add an action here at any time. During the Discuss & Act phase you can also use “Make action” on an idea. Each
-          action needs an owner and a due date.
+          action needs an owner; a due date is optional.
         </CardDescription>
         <CardAction className="rounded-full border bg-muted px-3 py-1 text-xs font-bold tracking-wide text-muted-foreground uppercase">
           {count === 0 ? "None yet" : `${count} ${count === 1 ? "action" : "actions"}`}
@@ -90,7 +90,7 @@ function ActionForm({
     ownerRef.current?.focus({ preventScroll: true });
   }, [draft]);
 
-  const complete = Boolean(text.trim() && owner.trim() && dueDate);
+  const complete = Boolean(text.trim() && owner.trim());
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -111,7 +111,7 @@ function ActionForm({
       <div className="grid gap-2.5 md:grid-cols-[1fr_14rem_10rem_auto]">
         <Input aria-label="Action" placeholder="What will we do?" value={text} maxLength={ACTION_LIMITS.text} onChange={(e) => setText(e.target.value)} />
         <Input ref={ownerRef} aria-label="Owner" placeholder="Owner" value={owner} maxLength={ACTION_LIMITS.owner} onChange={(e) => setOwner(e.target.value)} />
-        <Input aria-label="Due date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        <Input aria-label="Due date" type="date" min={todayIso()} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         <Button type="submit" disabled={!complete}>
           Add action
         </Button>
@@ -140,11 +140,13 @@ function ActionRow({
   const update = useMutation(api.actions.update);
   const remove = useMutation(api.actions.remove);
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [text, setText] = useState(action.text);
   const [owner, setOwner] = useState(action.owner);
   const [dueDate, setDueDate] = useState(action.dueDate);
 
   async function deleteAction() {
+    setConfirmDelete(false);
     try {
       if (action.isMine) await remove({ actionId: action.id, participantId });
       else if (onAdminDelete) {
@@ -179,7 +181,13 @@ function ActionRow({
         <form onSubmit={save} className="grid gap-2.5 md:grid-cols-[1fr_12rem_10rem_auto_auto]" aria-label="Edit action">
           <Input aria-label="Action" value={text} maxLength={ACTION_LIMITS.text} onChange={(e) => setText(e.target.value)} />
           <Input aria-label="Owner" value={owner} maxLength={ACTION_LIMITS.owner} onChange={(e) => setOwner(e.target.value)} />
-          <Input aria-label="Due date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <Input
+            aria-label="Due date"
+            type="date"
+            min={action.dueDate && action.dueDate < todayIso() ? action.dueDate : todayIso()}
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
           <Button type="submit">Save</Button>
           <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
             Cancel
@@ -201,18 +209,30 @@ function ActionRow({
       </div>
       <div>
         <span className="block text-[11px] font-bold tracking-widest text-muted-foreground uppercase">Due</span>
-        {formatDueDate(action.dueDate)}
+        {action.dueDate ? formatDueDate(action.dueDate) : "—"}
       </div>
-      <div className="flex gap-3 text-sm md:justify-end">
-        <button type="button" onClick={startEditing} className="font-semibold text-primary">
-          Edit
-        </button>
-        {(action.isMine || onAdminDelete) && (
-          <button type="button" onClick={() => void deleteAction()} className="text-muted-foreground hover:text-destructive">
-            Delete
+      {confirmDelete ? (
+        <div className="flex items-center gap-3 text-sm md:justify-end" role="group" aria-label="Confirm delete">
+          <span className="text-muted-foreground">Delete for everyone?</span>
+          <button type="button" onClick={() => void deleteAction()} className="font-semibold text-destructive">
+            Yes, delete
           </button>
-        )}
-      </div>
+          <button type="button" onClick={() => setConfirmDelete(false)} className="text-muted-foreground">
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-3 text-sm md:justify-end">
+          <button type="button" onClick={startEditing} className="font-semibold text-primary">
+            Edit
+          </button>
+          {(action.isMine || onAdminDelete) && (
+            <button type="button" onClick={() => setConfirmDelete(true)} className="text-muted-foreground hover:text-destructive">
+              Delete
+            </button>
+          )}
+        </div>
+      )}
     </li>
   );
 }

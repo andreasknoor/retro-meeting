@@ -1,20 +1,22 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { isScore, summarize } from "./lib/pulse";
+import { isScore, MAX_PULSE_ANSWERS, resultsVisible, summarize } from "./lib/pulse";
 import { enforce } from "./lib/rateLimits";
 import { assertParticipantId, findRetro, getRetroOrThrow } from "./lib/retroAccess";
-
-// Generous cap for one retro's participants; keeps the summary query bounded.
-export const MAX_PULSE_ANSWERS = 500;
 
 const summaryValidator = v.object({
   counts: v.array(v.number()),
   total: v.number(),
   average: v.union(v.number(), v.null()),
   mine: v.union(v.number(), v.null()),
+  revealed: v.boolean(),
 });
 
-/** Aggregates only: who gave which score is never returned (anonymous, §4.4). */
+/**
+ * Aggregates only: who gave which score is never returned (anonymous, §4.4). Until you answer
+ * (or the Intro phase is over), only the number of answers is returned, so others' scores
+ * cannot anchor yours.
+ */
 export const summary = query({
   args: { slug: v.string(), participantId: v.string() },
   returns: v.union(summaryValidator, v.null()),
@@ -26,10 +28,16 @@ export const summary = query({
       .withIndex("by_retroId_and_participantId", (q) => q.eq("retroId", retro._id))
       .take(MAX_PULSE_ANSWERS);
     const mine = answers.find((a) => a.participantId === participantId)?.score ?? null;
-    return summarize(
-      answers.map((a) => a.score),
-      mine,
-    );
+    if (!resultsVisible(retro.state, mine)) {
+      return { ...summarize([], null), total: answers.length, revealed: false };
+    }
+    return {
+      ...summarize(
+        answers.map((a) => a.score),
+        mine,
+      ),
+      revealed: true,
+    };
   },
 });
 

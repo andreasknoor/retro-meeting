@@ -95,13 +95,13 @@ describe("phase.back", () => {
     for (const from of ["not_started", "intro", "brainstorm"] as const) await t.mutation(api.phase.startNext, { slug, from });
     await t.mutation(api.votes.toggle, { ideaId: k1, participantId: "alice-0000" });
     await t.mutation(api.votes.toggle, { ideaId: k2, participantId: "bob-000000" });
-    expect((await get()).hasVotes).toBe(true);
+    expect((await t.query(api.ideas.list, { slug, participantId: "alice-0000" })).map((i) => i.voteCount)).toEqual([1, 1]);
 
     await expect(t.mutation(api.phase.back, { slug, from: "vote" })).rejects.toThrow("Going back deletes all votes.");
     expect((await get()).state).toBe("vote");
 
     await t.mutation(api.phase.back, { slug, from: "vote", discardVotes: true });
-    expect(await get()).toMatchObject({ state: "brainstorm", hasVotes: false });
+    expect((await get()).state).toBe("brainstorm");
     expect((await t.query(api.ideas.list, { slug, participantId: "alice-0000" })).map((i) => [i.voteCount, i.votedByMe])).toEqual([
       [0, false],
       [0, false],

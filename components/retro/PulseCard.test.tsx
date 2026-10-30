@@ -2,13 +2,14 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useMutation, useQuery } from "convex/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { summarize } from "@/convex/lib/pulse";
+import { MAX_PULSE_ANSWERS, summarize as baseSummary } from "@/convex/lib/pulse";
 import { PulseCard } from "./PulseCard";
 import type { Retro } from "./types";
 
 vi.mock("convex/react", () => ({ useQuery: vi.fn(), useMutation: vi.fn() }));
 
 const answer = vi.fn();
+const summarize = (scores: number[], mine: number | null) => ({ ...baseSummary(scores, mine), revealed: true });
 let optimistic: (store: unknown, args: { score: number }) => void;
 
 beforeEach(() => {
@@ -31,7 +32,7 @@ describe("PulseCard", () => {
   test("shows the question, average, count and distribution", () => {
     vi.mocked(useQuery).mockReturnValue(summarize([5, 4, 4, 3], null));
     render(<PulseCard retro={retro} participantId="me-000000" />);
-    expect(screen.getByText("How well did Sprint 42 Retro work for you?")).toBeInTheDocument();
+    expect(screen.getByText("How did the time since the last retro go for you?")).toBeInTheDocument();
     expect(screen.getByText("4.0")).toBeInTheDocument();
     expect(screen.getByText(/4 people have answered/)).toBeInTheDocument();
     const rows = within(screen.getByRole("list", { name: "Results" })).getAllByRole("listitem");
@@ -68,5 +69,26 @@ describe("PulseCard", () => {
     render(<PulseCard retro={{ ...retro, state: "brainstorm" }} participantId="me-000000" />);
     expect(screen.getByText("–")).toBeInTheDocument();
     expect(screen.getByText(/0 people have answered/)).toBeInTheDocument();
+  });
+
+  test("before answering, shows only how many answered; the optimistic update keeps it hidden", async () => {
+    const user = userEvent.setup();
+    const hidden = { ...baseSummary([], null), total: 3, revealed: false };
+    vi.mocked(useQuery).mockReturnValue(hidden);
+    render(<PulseCard retro={retro} participantId="me-000000" />);
+    expect(screen.getByText(/Results show once you have answered/)).toBeInTheDocument();
+    expect(screen.getByText(/3 people have answered/)).toBeInTheDocument();
+    expect(screen.getByText("–")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /2\s*Poor/ }));
+    const store = { getQuery: vi.fn(() => hidden), setQuery: vi.fn() };
+    optimistic(store, { score: 2 });
+    expect(store.setQuery).toHaveBeenCalledWith(expect.anything(), expect.anything(), { ...hidden, mine: 2 });
+  });
+
+  test("says when there are too many answers to count", () => {
+    vi.mocked(useQuery).mockReturnValue({ ...baseSummary([], 3), counts: [0, 0, MAX_PULSE_ANSWERS, 0, 0], total: MAX_PULSE_ANSWERS, revealed: true });
+    render(<PulseCard retro={retro} participantId="me-000000" />);
+    expect(screen.getByRole("status")).toHaveTextContent(`only the first ${MAX_PULSE_ANSWERS} are included`);
   });
 });

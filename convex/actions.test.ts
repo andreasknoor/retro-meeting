@@ -20,20 +20,20 @@ async function setup(enabledPhases?: Phase[]) {
       state = (await t.query(api.retros.getBySlug, { slug }))!.state;
     }
   };
-  const action = { slug, participantId: ALICE, text: "Quarantine flaky tests", owner: "Alex", dueDate: "2026-11-15" };
+  const action = { slug, participantId: ALICE, text: "Quarantine flaky tests", owner: "Alex", dueDate: "2099-11-15" };
   return { t, slug, ideaId, goTo, action };
 }
 
 describe("actions.add", () => {
   test("free-text actions work in any phase, sorted by due date", async () => {
     const { t, slug, action } = await setup();
-    await t.mutation(api.actions.add, { ...action, text: "Later", dueDate: "2026-12-01" });
+    await t.mutation(api.actions.add, { ...action, text: "Later", dueDate: "2099-12-01" });
     await t.mutation(api.actions.add, { ...action, text: " Sooner ", owner: " Sam " });
     expect(
       (await t.query(api.actions.list, { slug, participantId: ALICE })).map(({ text, owner, dueDate, idea }) => ({ text, owner, dueDate, idea })),
     ).toEqual([
-      { text: "Sooner", owner: "Sam", dueDate: "2026-11-15", idea: null },
-      { text: "Later", owner: "Alex", dueDate: "2026-12-01", idea: null },
+      { text: "Sooner", owner: "Sam", dueDate: "2099-11-15", idea: null },
+      { text: "Later", owner: "Alex", dueDate: "2099-12-01", idea: null },
     ]);
   });
 
@@ -62,11 +62,21 @@ describe("actions.add", () => {
     ["long text", { text: "x".repeat(201) }, "at most 200 characters"],
     ["no owner", { owner: "" }, "Every action needs an owner."],
     ["long owner", { owner: "x".repeat(61) }, "The owner can have at most 60 characters."],
-    ["no date", { dueDate: "" }, "Every action needs a valid due date."],
-    ["bad date", { dueDate: "2026-13-01" }, "Every action needs a valid due date."],
+    ["bad date", { dueDate: "2026-13-01" }, "The due date is invalid."],
+    ["past date", { dueDate: "2020-01-01" }, "The due date is in the past."],
   ])("rejects %s", async (_, patch, message) => {
     const { t, action } = await setup();
     await expect(t.mutation(api.actions.add, { ...action, ...patch })).rejects.toThrow(message);
+  });
+
+  test("the due date is optional; actions without one come last", async () => {
+    const { t, slug, action } = await setup();
+    await t.mutation(api.actions.add, { ...action, text: "Someday", dueDate: "" });
+    await t.mutation(api.actions.add, action);
+    expect((await t.query(api.actions.list, { slug, participantId: ALICE })).map((a) => [a.text, a.dueDate])).toEqual([
+      [action.text, action.dueDate],
+      ["Someday", ""],
+    ]);
   });
 
   test("rejects an idea from another retro", async () => {
@@ -80,7 +90,7 @@ describe("actions.add", () => {
     const { t, slug, action } = await setup();
     const retroId = (await t.run((ctx) => ctx.db.query("retros").first()))!._id;
     await t.run(async (ctx) => {
-      for (let i = 0; i < MAX_ACTIONS; i++) await ctx.db.insert("actions", { retroId, text: `#${i}`, owner: "A", dueDate: "2026-11-01" });
+      for (let i = 0; i < MAX_ACTIONS; i++) await ctx.db.insert("actions", { retroId, text: `#${i}`, owner: "A", dueDate: "2099-11-01" });
     });
     await expect(t.mutation(api.actions.add, action)).rejects.toThrow("maximum number of actions");
     expect(await t.query(api.actions.list, { slug, participantId: ALICE })).toHaveLength(MAX_ACTIONS);
@@ -91,9 +101,9 @@ describe("actions.update / remove", () => {
   test("edits and deletes an action", async () => {
     const { t, slug, action } = await setup();
     const actionId = await t.mutation(api.actions.add, action);
-    await t.mutation(api.actions.update, { actionId, text: "Fix CI", owner: "Kim", dueDate: "2026-11-20" });
-    expect(await t.query(api.actions.list, { slug, participantId: ALICE })).toMatchObject([{ text: "Fix CI", owner: "Kim", dueDate: "2026-11-20" }]);
-    await expect(t.mutation(api.actions.update, { actionId, text: "x", owner: "", dueDate: "2026-11-20" })).rejects.toThrow(
+    await t.mutation(api.actions.update, { actionId, text: "Fix CI", owner: "Kim", dueDate: "2099-11-20" });
+    expect(await t.query(api.actions.list, { slug, participantId: ALICE })).toMatchObject([{ text: "Fix CI", owner: "Kim", dueDate: "2099-11-20" }]);
+    await expect(t.mutation(api.actions.update, { actionId, text: "x", owner: "", dueDate: "2099-11-20" })).rejects.toThrow(
       "owner",
     );
     await t.mutation(api.actions.remove, { actionId, participantId: ALICE });
@@ -109,12 +119,12 @@ describe("actions.update / remove", () => {
     const actionId = await t.mutation(api.actions.add, action);
     expect((await t.query(api.actions.list, { slug, participantId: ALICE }))[0].isMine).toBe(true);
     expect((await t.query(api.actions.list, { slug, participantId: BOB }))[0].isMine).toBe(false);
-    await t.mutation(api.actions.update, { actionId, text: "Edited by Bob", owner: "Bob", dueDate: "2026-11-20" });
+    await t.mutation(api.actions.update, { actionId, text: "Edited by Bob", owner: "Bob", dueDate: "2099-11-20" });
     await expect(t.mutation(api.actions.remove, { actionId, participantId: BOB })).rejects.toThrow(
       "Only the person who added this action or the admin can delete it.",
     );
     const retroId = (await t.run((ctx) => ctx.db.query("retros").first()))!._id;
-    const legacy = await t.run((ctx) => ctx.db.insert("actions", { retroId, text: "Old", owner: "A", dueDate: "2026-11-01" }));
+    const legacy = await t.run((ctx) => ctx.db.insert("actions", { retroId, text: "Old", owner: "A", dueDate: "2099-11-01" }));
     await expect(t.mutation(api.actions.remove, { actionId: legacy, participantId: ALICE })).rejects.toThrow("admin");
   });
 
@@ -122,6 +132,17 @@ describe("actions.update / remove", () => {
     const { t, slug, action } = await setup();
     await t.mutation(api.actions.add, action);
     expect(JSON.stringify(await t.query(api.actions.list, { slug, participantId: BOB }))).not.toContain(ALICE);
+  });
+
+  test("an overdue action can still be edited, but not moved to another past date", async () => {
+    const { t, slug } = await setup();
+    const retroId = (await t.run((ctx) => ctx.db.query("retros").first()))!._id;
+    const actionId = await t.run((ctx) => ctx.db.insert("actions", { retroId, text: "Old", owner: "A", dueDate: "2020-01-01" }));
+    await t.mutation(api.actions.update, { actionId, text: "Old", owner: "Kim", dueDate: "2020-01-01" });
+    expect((await t.query(api.actions.list, { slug, participantId: ALICE }))[0].owner).toBe("Kim");
+    await expect(t.mutation(api.actions.update, { actionId, text: "Old", owner: "Kim", dueDate: "2020-01-02" })).rejects.toThrow(
+      "The due date is in the past.",
+    );
   });
 
   test("rejects a malformed participant", async () => {

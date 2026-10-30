@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
 import { focusArea } from "@/convex/lib/phases";
-import { SCORE_LABELS, type Score, withAnswer } from "@/convex/lib/pulse";
+import { MAX_PULSE_ANSWERS, SCORE_LABELS, type Score, withAnswer } from "@/convex/lib/pulse";
 import { cn } from "@/lib/utils";
 import type { Retro } from "./types";
 
@@ -15,7 +15,10 @@ export function PulseCard({ retro, participantId }: { retro: Retro; participantI
   const summary = useQuery(api.pulse.summary, { slug, participantId });
   const answer = useMutation(api.pulse.answer).withOptimisticUpdate((store, args) => {
     const current = store.getQuery(api.pulse.summary, { slug, participantId });
-    if (current) store.setQuery(api.pulse.summary, { slug, participantId }, withAnswer(current, args.score));
+    if (!current) return;
+    // Hidden results stay hidden until the server sends them; only "You answered" shows at once.
+    const next = current.revealed ? { ...withAnswer(current, args.score), revealed: true } : { ...current, mine: args.score };
+    store.setQuery(api.pulse.summary, { slug, participantId }, next);
   });
 
   const mine = summary?.mine ?? null;
@@ -25,7 +28,7 @@ export function PulseCard({ retro, participantId }: { retro: Retro; participantI
     <Card className={cn(focusArea(retro.state) === "pulse" && "ring-2 ring-primary")}>
       <CardHeader>
         <CardTitle className="text-xl">Pulse check</CardTitle>
-        <CardDescription>How well did {retro.name} work for you?</CardDescription>
+        <CardDescription>How did the time since the last retro go for you?</CardDescription>
         {mine !== null && (
           <CardAction className="rounded-full bg-secondary px-3 py-1 text-xs font-bold tracking-wide text-secondary-foreground uppercase">
             You answered {mine}
@@ -59,6 +62,16 @@ export function PulseCard({ retro, participantId }: { retro: Retro; participantI
         </div>
 
         <div className="rounded-xl bg-muted/60 p-4" aria-live="polite">
+          {summary && !summary.revealed && (
+            <p className="mb-2 text-sm text-muted-foreground">
+              Results show once you have answered, so others’ scores don’t sway yours.
+            </p>
+          )}
+          {summary && summary.total >= MAX_PULSE_ANSWERS && (
+            <p role="status" className="mb-2 text-sm text-muted-foreground">
+              Too many answers to count them all; only the first {MAX_PULSE_ANSWERS} are included.
+            </p>
+          )}
           <p className="mb-2 flex items-baseline gap-2">
             <span className="text-3xl font-bold">{summary?.average?.toFixed(1) ?? "–"}</span>
             <span className="text-muted-foreground">

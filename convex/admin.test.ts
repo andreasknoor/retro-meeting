@@ -105,6 +105,24 @@ describe("admin operations", () => {
     ).rejects.toThrow("Your admin session has expired.");
   });
 
+  test("changing the running phase's time moves its timer; extensions are kept", async () => {
+    const { t, slug, login } = await setup();
+    const { token } = await login();
+    const agenda = { intro: 3, brainstorm: 10, vote: 5, discuss: 12 };
+    await t.mutation(api.phase.startNext, { slug, from: "not_started", token });
+    await t.mutation(api.phase.startNext, { slug, from: "intro", token });
+    await t.mutation(api.phase.extend, { slug, from: "brainstorm", token });
+    const before = (await t.query(api.retros.getBySlug, { slug }))!;
+    await t.mutation(api.admin.updateAgenda, { slug, token, agenda: { ...before.agenda, ...agenda } });
+    const after = (await t.query(api.retros.getBySlug, { slug }))!;
+    expect(after.phaseDurationSec).toBe((10 + 1) * 60);
+    expect(after.phaseStartedAt).toBe(before.phaseStartedAt);
+
+    await t.mutation(api.phase.endEarly, { slug, from: "brainstorm", token });
+    await t.mutation(api.admin.updateAgenda, { slug, token, agenda: { ...agenda, brainstorm: 20 } });
+    expect((await t.query(api.retros.getBySlug, { slug }))!.phaseDurationSec).toBeNull();
+  });
+
   test("switches who controls the phases", async () => {
     const { t, slug, login } = await setup();
     const { token } = await login();
@@ -144,12 +162,12 @@ describe("admin operations", () => {
   test("admins can delete anyone's action, but only in their retro", async () => {
     const { t, slug, login } = await setup();
     const { token } = await login();
-    const actionId = await t.mutation(api.actions.add, { slug, participantId: ALICE, text: "Hers", owner: "A", dueDate: "2026-11-01" });
+    const actionId = await t.mutation(api.actions.add, { slug, participantId: ALICE, text: "Hers", owner: "A", dueDate: "2099-11-01" });
     const other = await t.action(api.retrosNode.create, {
       name: "Other", subtitle: "", date: "2026-10-28", lengthMin: 30, facilitator: "B", enabledPhases: ["brainstorm"], password: "other-pw",
     });
     const foreign = await t.mutation(api.actions.add, {
-      slug: other.slug, participantId: ALICE, text: "Foreign", owner: "A", dueDate: "2026-11-01",
+      slug: other.slug, participantId: ALICE, text: "Foreign", owner: "A", dueDate: "2099-11-01",
     });
 
     await t.mutation(api.admin.removeAction, { slug, token, actionId: foreign });
@@ -167,7 +185,7 @@ describe("admin operations", () => {
     const { token } = await login();
     const ideaId = await t.mutation(api.ideas.add, { slug, participantId: ALICE, column: "keep", text: "Idea", initials: "" });
     await t.mutation(api.pulse.answer, { slug, participantId: ALICE, score: 4 });
-    await t.mutation(api.actions.add, { slug, participantId: ALICE, text: "Do it", owner: "Alex", dueDate: "2026-11-01" });
+    await t.mutation(api.actions.add, { slug, participantId: ALICE, text: "Do it", owner: "Alex", dueDate: "2099-11-01" });
     for (const from of ["not_started", "intro", "brainstorm"] as const) await t.mutation(api.phase.startNext, { slug, from, token });
     await t.mutation(api.votes.toggle, { ideaId, participantId: ALICE });
     await expect(login("wrong")).rejects.toThrow();

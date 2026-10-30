@@ -12,8 +12,7 @@ export const MAX_IDEAS = IDEA_LIMITS.perRetro;
 // Checked per author, so concurrent adds by different people never read the same rows
 // (a retro-wide count made every add conflict with every other one under load).
 export const MAX_IDEAS_PER_PARTICIPANT = 30;
-// One vote per participant and column: 3 × participants.
-export const MAX_VOTES = 3000;
+export const MAX_VOTES = IDEA_LIMITS.votesPerRetro;
 
 const ideaValidator = v.object({
   id: v.id("ideas"),

@@ -6,7 +6,7 @@ test("only the admin switches phases by default; guests can log in inline", asyn
   const guest = await joinAsGuest(browser, url);
 
   // The creator is logged in as admin automatically; the guest only sees a hint.
-  await expect(guest.getByText("The facilitator controls the phases.")).toBeVisible();
+  await expect(guest.getByText("Only the admin can switch phases.")).toBeVisible();
   await expect(guest.getByRole("button", { name: /^Start / })).toHaveCount(0);
   await page.getByRole("button", { name: "Start Intro & Pulse" }).click();
   await expect(guest.getByRole("timer")).toContainText("Intro & Pulse");

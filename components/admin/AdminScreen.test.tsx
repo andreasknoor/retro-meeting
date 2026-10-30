@@ -84,15 +84,18 @@ describe("AdminScreen panel", () => {
     render(<AdminScreen slug="k7f3q9xa" />);
     expect(await screen.findByText("30 min of 30 min")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save times" })).toBeDisabled();
 
     await user.clear(screen.getByLabelText("Discuss & Act"));
     await user.type(screen.getByLabelText("Discuss & Act"), "20");
     expect(screen.getByText("37 min of 30 min")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("7 min longer");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Save times" }));
     expect(adminSaveAgenda).toHaveBeenCalledWith("k7f3q9xa", { intro: 4, brainstorm: 8, vote: 5, discuss: 20 });
     expect(toast.success).toHaveBeenCalledWith("Agenda times saved · updated for everyone");
+    expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
 
     await user.clear(screen.getByLabelText("Vote"));
     await user.clear(screen.getByLabelText("Discuss & Act"));
@@ -104,6 +107,26 @@ describe("AdminScreen panel", () => {
 
     await user.click(screen.getByRole("button", { name: "Reset to defaults" }));
     expect(screen.getByText("30 min of 30 min")).toBeInTheDocument();
+  });
+
+  test("shows agenda changes from elsewhere unless there are unsaved edits", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<AdminScreen slug="k7f3q9xa" />);
+    expect(await screen.findByText("30 min of 30 min")).toBeInTheDocument();
+
+    vi.mocked(useQuery).mockReturnValue({ ...retro, agenda: { ...retro.agenda, discuss: 23 } });
+    rerender(<AdminScreen slug="k7f3q9xa" />);
+    expect(screen.getByLabelText("Discuss & Act")).toHaveValue(23);
+
+    await user.clear(screen.getByLabelText("Vote"));
+    await user.type(screen.getByLabelText("Vote"), "7");
+    vi.mocked(useQuery).mockReturnValue({ ...retro, agenda: { ...retro.agenda, discuss: 9 } });
+    rerender(<AdminScreen slug="k7f3q9xa" />);
+    expect(screen.getByLabelText("Discuss & Act")).toHaveValue(23);
+
+    await user.click(screen.getByRole("button", { name: "Discard" }));
+    expect(screen.getByLabelText("Discuss & Act")).toHaveValue(9);
+    expect(screen.getByLabelText("Vote")).toHaveValue(5);
   });
 
   test("deletes the retro only after typing its exact name", async () => {

@@ -29,7 +29,7 @@ test("retro page as admin and as participant, and the admin area", async ({ page
   await expectNoSeriousViolations(page);
 
   const guest = await joinAsGuest(browser, url);
-  await expect(guest.getByText("The facilitator controls the phases.")).toBeVisible();
+  await expect(guest.getByText("Only the admin can switch phases.")).toBeVisible();
   await expectNoSeriousViolations(guest);
   await guest.context().close();
 

@@ -20,12 +20,10 @@ const publicRetroValidator = v.object({
   phaseStartedAt: v.union(v.number(), v.null()),
   phaseDurationSec: v.union(v.number(), v.null()),
   adminControlsPhases: v.boolean(),
-  /** Whether anyone has voted; going back before the Vote phase then needs a confirmation. */
-  hasVotes: v.boolean(),
 });
 
 // Never return the password hash or salt to clients.
-function toPublic(r: Doc<"retros">, hasVotes: boolean) {
+function toPublic(r: Doc<"retros">) {
   return {
     slug: r.slug,
     name: r.name,
@@ -39,7 +37,6 @@ function toPublic(r: Doc<"retros">, hasVotes: boolean) {
     phaseStartedAt: r.phaseStartedAt ?? null,
     phaseDurationSec: r.phaseDurationSec ?? null,
     adminControlsPhases: r.adminControlsPhases ?? false,
-    hasVotes,
   };
 }
 
@@ -51,12 +48,9 @@ export const getBySlug = query({
       .query("retros")
       .withIndex("by_slug", (q) => q.eq("slug", slug))
       .unique();
-    if (!retro) return null;
-    const anyVote = await ctx.db
-      .query("votes")
-      .withIndex("by_retroId_and_participantId_and_column", (q) => q.eq("retroId", retro._id))
-      .first();
-    return toPublic(retro, anyVote !== null);
+    // Reads only the retro document, so it does not re-run on votes (whether anyone voted comes
+    // from ideas.list on the client).
+    return retro ? toPublic(retro) : null;
   },
 });
 

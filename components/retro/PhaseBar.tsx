@@ -16,12 +16,14 @@ import type { Retro } from "./types";
 
 type Props = {
   retro: Retro;
+  /** Whether anyone has voted; going back before the Vote phase then needs a confirmation. */
+  hasVotes: boolean;
   /** Whether this browser holds an admin session for the retro. */
   isAdmin: boolean;
   onAdminLogin: () => void;
 };
 
-export function PhaseBar({ retro, isAdmin, onAdminLogin }: Props) {
+export function PhaseBar({ retro, hasVotes, isAdmin, onAdminLogin }: Props) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmBack, setConfirmBack] = useState(false);
 
@@ -35,7 +37,7 @@ export function PhaseBar({ retro, isAdmin, onAdminLogin }: Props) {
 
   function back() {
     // Going back before the Vote phase deletes the votes: warn only if there are any.
-    if (backDiscardsVotes(state, retro.enabledPhases) && retro.hasVotes) setConfirmBack(true);
+    if (backDiscardsVotes(state, retro.enabledPhases) && hasVotes) setConfirmBack(true);
     else void run("back");
   }
 
@@ -179,7 +181,7 @@ function PhaseLock({ slug, onAdminLogin }: { slug: string; onAdminLogin: () => v
   if (!open) {
     return (
       <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        The facilitator controls the phases.
+        Only the admin can switch phases.
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
           <Lock className="size-3.5" /> Log in to control
         </Button>

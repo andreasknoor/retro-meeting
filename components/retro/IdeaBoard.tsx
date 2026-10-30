@@ -116,6 +116,11 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
         )}
       </CardHeader>
       <CardContent>
+        {ideas && ideas.reduce((sum, i) => sum + i.voteCount, 0) >= IDEA_LIMITS.votesPerRetro && (
+          <p role="status" className="mb-4 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+            This retro has too many votes to count them all; vote counts may be incomplete.
+          </p>
+        )}
         {ideas && ideas.length >= IDEA_LIMITS.perRetro && (
           <p role="status" className="mb-4 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
             This retro has too many ideas to show them all; only the first {IDEA_LIMITS.perRetro} are shown.
@@ -219,9 +224,13 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
 
 export function boardHint(state: Retro["state"], votingOn: boolean, byVotes: boolean): string {
   if (state === "vote") {
-    return "Voting is open: one vote per column. Tap another idea to move your vote, or tap ✓ Voted to take it back.";
+    return "Voting is open: one vote per column. Tap another idea to move your vote, or tap ✓ Voted to take it back. Ideas added now may miss the votes already cast.";
   }
-  if (byVotes) return "Voting is closed. Each column is ranked by votes.";
+  if (byVotes) {
+    return state === "finished"
+      ? "Voting is closed. Each column is ranked by votes."
+      : "Voting is closed. Each column is ranked by votes. New ideas can still be added, but they get no votes.";
+  }
   return votingOn
     ? "Add ideas to any column. Everyone sees them right away. Voting opens in the Vote phase."
     : "Add ideas to any column. Everyone sees them right away.";

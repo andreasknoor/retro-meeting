@@ -8,7 +8,7 @@ import { adminDeleteAction, adminDeleteIdea, isAdmin } from "@/app/actions/admin
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
-import { PHASE_LABELS } from "@/convex/lib/agenda";
+import { agendaTotal, PHASE_LABELS } from "@/convex/lib/agenda";
 import { useParticipantId } from "@/lib/participant";
 import { forgetRetro, rememberRetro } from "@/lib/recentRetros";
 import { ActionItems } from "./ActionItems";
@@ -22,6 +22,9 @@ import type { ActionDraft, Retro } from "./types";
 export function RetroScreen({ slug }: { slug: string }) {
   const retro = useQuery(api.retros.getBySlug, { slug });
   const participantId = useParticipantId();
+  // Same subscription as the idea board's; tells the phase bar whether going back discards votes.
+  const ideas = useQuery(api.ideas.list, participantId ? { slug, participantId } : "skip");
+  const hasVotes = ideas?.some((idea) => idea.voteCount > 0) ?? false;
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
   const [admin, setAdmin] = useAdminStatus(slug);
 
@@ -37,8 +40,8 @@ export function RetroScreen({ slug }: { slug: string }) {
 
   return (
     <>
-      <RetroHeader {...retro} isAdmin={admin} />
-      <PhaseBar retro={retro} isAdmin={admin} onAdminLogin={() => setAdmin(true)} />
+      <RetroHeader {...retro} lengthMin={agendaTotal(retro.agenda, retro.enabledPhases)} isAdmin={admin} />
+      <PhaseBar retro={retro} hasVotes={hasVotes} isAdmin={admin} onAdminLogin={() => setAdmin(true)} />
       <main className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6">
         <div className="grid gap-5 lg:grid-cols-[1fr_1.25fr]">
           <AgendaCard retro={retro} />

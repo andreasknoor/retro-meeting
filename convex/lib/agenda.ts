@@ -37,6 +37,11 @@ export function calcAgenda(lengthMin: number, enabled: readonly Phase[]): Agenda
   return agenda;
 }
 
+/** Minutes the agenda adds up to; can differ from the planned length after admin changes. */
+export function agendaTotal(agenda: Agenda, enabled: readonly Phase[]): number {
+  return PHASES.filter((p) => enabled.includes(p)).reduce((sum, p) => sum + agenda[p], 0);
+}
+
 /** Enabled phases in canonical order, without duplicates. */
 export function orderPhases(enabled: readonly Phase[]): Phase[] {
   return PHASES.filter((p) => enabled.includes(p));

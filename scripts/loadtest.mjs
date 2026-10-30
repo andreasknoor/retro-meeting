@@ -97,7 +97,7 @@ console.log(`  vote counts correct for everyone: ${N} votes on each top idea`);
 
 await phase("vote");
 const actions = await Promise.all(
-  people.slice(0, 10).map((p, i) => timed(() => p.client.mutation(api.actions.add, { slug, participantId: p.participantId, text: `Action ${i}`, owner: `Owner ${i}`, dueDate: "2026-12-01" }))),
+  people.slice(0, 10).map((p, i) => timed(() => p.client.mutation(api.actions.add, { slug, participantId: p.participantId, text: `Action ${i}`, owner: `Owner ${i}`, dueDate: "2099-12-01" }))),
 );
 console.log(`Actions added: ${stats(actions)}`);
 await phase("discuss");

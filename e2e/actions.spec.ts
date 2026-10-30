@@ -16,9 +16,9 @@ test("free-text actions anytime, Make action only in Discuss, visible to everyon
 
   // Free text before the retro starts.
   await actionForm(page).getByLabel("Action").fill("Book a demo slot");
-  await actionForm(page).getByLabel("Owner").fill("Sam");
   await expect(actionForm(page).getByRole("button", { name: "Add action" })).toBeDisabled();
-  await actionForm(page).getByLabel("Due date").fill("2026-12-20");
+  await actionForm(page).getByLabel("Owner").fill("Sam");
+  await actionForm(page).getByLabel("Due date").fill("2099-12-20");
   await actionForm(page).getByRole("button", { name: "Add action" }).click();
   await expect(actionList(guest)).toContainText("Book a demo slot");
 
@@ -37,11 +37,11 @@ test("free-text actions anytime, Make action only in Discuss, visible to everyon
   await expect(actionForm(page)).toContainText("From Fix");
   await actionForm(page).getByLabel("Action").fill("Quarantine flaky tests");
   await actionForm(page).getByLabel("Owner").fill("Alex");
-  await actionForm(page).getByLabel("Due date").fill("2026-11-15");
+  await actionForm(page).getByLabel("Due date").fill("2099-11-15");
   await actionForm(page).getByRole("button", { name: "Add action" }).click();
 
   // Sorted by due date, linked to the idea, live for the guest.
-  await expect(actionList(guest).getByRole("listitem")).toHaveText([/Quarantine flaky tests.*from Fix.*Alex.*15\.11\.2026/, /Book a demo slot.*Sam.*20\.12\.2026/]);
+  await expect(actionList(guest).getByRole("listitem")).toHaveText([/Quarantine flaky tests.*from Fix.*Alex.*15\.11\.2099/, /Book a demo slot.*Sam.*20\.12\.2099/]);
   await showColumn(guest, "Fix");
   await expect(guest.getByRole("region", { name: "Fix" })).toContainText("→ Action");
 
@@ -52,13 +52,16 @@ test("free-text actions anytime, Make action only in Discuss, visible to everyon
   await edit.getByRole("button", { name: "Save" }).click();
   await expect(actionList(page).getByRole("listitem").first()).toContainText("Kim");
 
-  // Only the author (or the admin) may delete: the guest adds and deletes their own action.
+  // Only the author (or the admin) may delete, after confirming: the guest adds an action
+  // without a due date (listed last) and deletes it.
   await expect(actionList(guest).getByRole("button", { name: "Delete" })).toHaveCount(0);
   await actionForm(guest).getByLabel("Action").fill("Guest action");
   await actionForm(guest).getByLabel("Owner").fill("Bo");
-  await actionForm(guest).getByLabel("Due date").fill("2026-12-30");
   await actionForm(guest).getByRole("button", { name: "Add action" }).click();
-  await actionList(guest).getByRole("listitem").filter({ hasText: "Guest action" }).getByRole("button", { name: "Delete" }).click();
+  await expect(actionList(page).getByRole("listitem").last()).toContainText(/Guest action.*Bo.*—/);
+  const guestAction = actionList(guest).getByRole("listitem").filter({ hasText: "Guest action" });
+  await guestAction.getByRole("button", { name: "Delete" }).click();
+  await guestAction.getByRole("button", { name: "Yes, delete" }).click();
   await expect(actionList(page)).not.toContainText("Guest action");
   await expect(actionList(guest).getByRole("listitem")).toHaveCount(2);
 

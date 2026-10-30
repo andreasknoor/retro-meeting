@@ -80,6 +80,12 @@ describe("IdeaBoard", () => {
     expect(screen.getByRole("status")).toHaveTextContent("only the first 300 are shown");
   });
 
+  test("says so when vote counts may be cut off", () => {
+    vi.mocked(useQuery).mockReturnValue([idea("i1", "keep", "Busy", { voteCount: 2000 }), idea("i2", "fix", "Also", { voteCount: 1000 })]);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("vote counts may be incomplete");
+  });
+
   test("shows no such note for a normal board", () => {
     render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={vi.fn()} />);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -308,5 +314,7 @@ test("boardHint", () => {
   expect(boardHint("brainstorm", true, false)).toMatch(/Voting opens in the Vote phase/);
   expect(boardHint("brainstorm", false, false)).not.toMatch(/Voting/);
   expect(boardHint("vote", true, true)).toMatch(/Voting is open/);
-  expect(boardHint("discuss", true, true)).toMatch(/Voting is closed/);
+  expect(boardHint("discuss", true, true)).toMatch(/Voting is closed.*can still be added, but they get no votes/);
+  expect(boardHint("finished", true, true)).not.toMatch(/can still be added/);
+  expect(boardHint("vote", true, true)).toMatch(/Ideas added now may miss the votes already cast/);
 });

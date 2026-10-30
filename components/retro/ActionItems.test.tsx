@@ -5,6 +5,7 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { todayIso } from "@/lib/format";
 import { ActionItems } from "./ActionItems";
 import type { ActionDraft, ActionItem, Retro } from "./types";
 
@@ -62,15 +63,18 @@ describe("ActionItems", () => {
     expect(screen.getByText("No actions yet.")).toBeInTheDocument();
   });
 
-  test("Add stays disabled until text, owner and due date are set", async () => {
+  test("Add stays disabled until text and owner are set; the due date is optional", async () => {
     const user = userEvent.setup();
     vi.mocked(useQuery).mockReturnValue([ACTIONS[0]]);
     render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
     expect(screen.getByText("1 action")).toBeInTheDocument();
     const add = within(form()).getByRole("button", { name: "Add action" });
     expect(add).toBeDisabled();
-    await fill(user, "Write a runbook", "Kim", "2026-12-01");
+    expect(within(form()).getByLabelText("Due date")).toHaveAttribute("min", todayIso());
+    await user.type(within(form()).getByLabelText("Action"), "Write a runbook");
+    await user.type(within(form()).getByLabelText("Owner"), "Kim");
     expect(add).toBeEnabled();
+    await user.type(within(form()).getByLabelText("Due date"), "2026-12-01");
     await user.click(add);
     expect(mutations["actions:add"]).toHaveBeenCalledWith({
       slug: "k7f3q9xa",
@@ -151,14 +155,21 @@ describe("ActionItems", () => {
     expect(screen.queryByRole("form", { name: "Edit action" })).not.toBeInTheDocument();
   });
 
-  test("only your own actions can be deleted; failures are reported", async () => {
+  test("only your own actions can be deleted, after confirming; failures are reported", async () => {
     const user = userEvent.setup();
     render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
     expect(screen.getAllByRole("button", { name: "Delete" })).toHaveLength(1);
     await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(screen.getByText("Delete for everyone?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(mutations["actions:remove"]).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Yes, delete" }));
     expect(mutations["actions:remove"]).toHaveBeenCalledWith({ actionId: "a1", participantId: ME });
     mutations["actions:remove"].mockRejectedValueOnce(new Error("network"));
     await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Yes, delete" }));
     await vi.waitFor(() => expect(toast.error).toHaveBeenCalledWith("Could not delete the action."));
   });
 
@@ -169,10 +180,18 @@ describe("ActionItems", () => {
     const deletes = screen.getAllByRole("button", { name: "Delete" });
     expect(deletes).toHaveLength(2);
     await user.click(deletes[1]);
+    await user.click(screen.getByRole("button", { name: "Yes, delete" }));
     expect(onAdminDelete).toHaveBeenCalledWith(ACTIONS[1]);
     expect(mutations["actions:remove"]).not.toHaveBeenCalled();
-    await user.click(deletes[1]);
+    await user.click(screen.getAllByRole("button", { name: "Delete" })[1]);
+    await user.click(screen.getByRole("button", { name: "Yes, delete" }));
     await vi.waitFor(() => expect(toast.error).toHaveBeenCalledWith("Your admin session has expired."));
+  });
+
+  test("actions without a due date show a dash", () => {
+    vi.mocked(useQuery).mockReturnValue([{ ...ACTIONS[1], dueDate: "" }]);
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
+    expect(screen.getByRole("list", { name: "Actions" })).toHaveTextContent(/Due—/);
   });
 
   test("passes the participant when adding", async () => {

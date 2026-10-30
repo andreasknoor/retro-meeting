@@ -122,15 +122,20 @@ function LoginForm({ retro, onLoggedIn }: { retro: Retro; onLoggedIn: () => void
 function AdminPanel({ retro, onLoggedOut }: { retro: Retro; onLoggedOut: () => void }) {
   const router = useRouter();
   const phases = orderPhases(retro.enabledPhases);
-  const [agenda, setAgenda] = useState<Agenda>(retro.agenda);
+  // Unsaved edits; null shows the saved agenda, which also follows changes from other tabs.
+  const [draft, setDraft] = useState<Agenda | null>(null);
+  const agenda = draft ?? retro.agenda;
+  const setAgenda = (update: (a: Agenda) => Agenda) => setDraft(update(agenda));
   const [confirmName, setConfirmName] = useState("");
   const total = phases.reduce((sum, p) => sum + (agenda[p] || 0), 0);
   const diff = total - retro.lengthMin;
 
   async function save() {
     const result = await adminSaveAgenda(retro.slug, agenda);
-    if (result.ok) toast.success("Agenda times saved · updated for everyone");
-    else toast.error(result.error);
+    if (result.ok) {
+      setDraft(null);
+      toast.success("Agenda times saved · updated for everyone");
+    } else toast.error(result.error);
   }
 
   async function setPhaseControl(adminControlsPhases: boolean) {
@@ -187,7 +192,9 @@ function AdminPanel({ retro, onLoggedOut }: { retro: Retro; onLoggedOut: () => v
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Phase control</CardTitle>
-          <CardDescription>Decide who may start phases, extend or end them, and reset the retro.</CardDescription>
+          <CardDescription>
+            Decide who may start phases, extend or end them, and reset the retro. Saved as soon as you change it.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <label className="flex cursor-pointer items-center gap-2.5">
@@ -205,7 +212,10 @@ function AdminPanel({ retro, onLoggedOut }: { retro: Retro; onLoggedOut: () => v
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Agenda times</CardTitle>
-          <CardDescription>Only the durations can be changed. Changes apply to everyone right away.</CardDescription>
+          <CardDescription>
+            Only the durations can be changed. Saved with “Save times”, then they apply to everyone, including the
+            running phase’s timer.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="grid">
@@ -236,10 +246,22 @@ function AdminPanel({ retro, onLoggedOut }: { retro: Retro; onLoggedOut: () => v
             </p>
           )}
           <div className="mt-4 flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setAgenda(calcAgenda(retro.lengthMin, retro.enabledPhases))}>
+            {draft && (
+              <span className="mr-auto self-center text-sm text-muted-foreground">
+                Unsaved changes
+              </span>
+            )}
+            {draft && (
+              <Button variant="ghost" onClick={() => setDraft(null)}>
+                Discard
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setDraft(calcAgenda(retro.lengthMin, retro.enabledPhases))}>
               Reset to defaults
             </Button>
-            <Button onClick={() => void save()}>Save times</Button>
+            <Button disabled={!draft} onClick={() => void save()}>
+              Save times
+            </Button>
           </div>
         </CardContent>
       </Card>
