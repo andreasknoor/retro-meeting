@@ -24,7 +24,6 @@ export const agendaValidator = v.object({
   discuss: v.number(),
 });
 
-// Further tables (ideas, votes, pulse, actions, admin sessions) follow in M2–M7.
 export default defineSchema({
   retros: defineTable({
     slug: v.string(),
@@ -41,4 +40,10 @@ export default defineSchema({
     passwordHash: v.string(),
     passwordSalt: v.string(),
   }).index("by_slug", ["slug"]),
+
+  pulseAnswers: defineTable({
+    retroId: v.id("retros"),
+    participantId: v.string(),
+    score: v.number(), // 1..5
+  }).index("by_retroId_and_participantId", ["retroId", "participantId"]),
 });

@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useQuery } from "convex/react";
+import { getFunctionName } from "convex/server";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { loadRecent, rememberRetro } from "@/lib/recentRetros";
@@ -8,7 +9,7 @@ import { RetroScreen } from "./RetroScreen";
 
 vi.mock("convex/react", () => ({
   useQuery: vi.fn(),
-  useMutation: vi.fn(() => vi.fn()),
+  useMutation: vi.fn(() => Object.assign(vi.fn(), { withOptimisticUpdate: () => vi.fn() })),
   useAction: vi.fn(() => vi.fn().mockResolvedValue(Date.now())),
 }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn() }) }));
@@ -27,6 +28,12 @@ const retro = {
   phaseDurationSec: null,
 };
 
+function mockRetro(value: unknown) {
+  // getBySlug returns the retro; other queries (e.g. the pulse summary) stay loading.
+  vi.mocked(useQuery).mockImplementation(((ref: never) =>
+    getFunctionName(ref) === "retros:getBySlug" ? value : undefined) as never);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -39,8 +46,17 @@ describe("RetroScreen", () => {
     expect(screen.getByText("Loading retro…")).toBeInTheDocument();
   });
 
+  test("shows the pulse check only when the intro phase is enabled", () => {
+    mockRetro(retro);
+    const { rerender } = render(<RetroScreen slug="k7f3q9xa" />);
+    expect(screen.getByText("Pulse check")).toBeInTheDocument();
+    mockRetro({ ...retro, enabledPhases: ["brainstorm"] });
+    rerender(<RetroScreen slug="k7f3q9xa" />);
+    expect(screen.queryByText("Pulse check")).not.toBeInTheDocument();
+  });
+
   test("shows the header with master data and remembers the retro", async () => {
-    vi.mocked(useQuery).mockReturnValue(retro);
+    mockRetro(retro);
     render(<RetroScreen slug="k7f3q9xa" />);
     expect(screen.getByRole("heading", { name: "Sprint 42 Retro" })).toBeInTheDocument();
     expect(screen.getByText("Keep, fix, try")).toBeInTheDocument();
@@ -51,7 +67,7 @@ describe("RetroScreen", () => {
   });
 
   test("hides the subtitle when there is none", () => {
-    vi.mocked(useQuery).mockReturnValue({ ...retro, subtitle: null });
+    mockRetro({ ...retro, subtitle: null });
     render(<RetroScreen slug="k7f3q9xa" />);
     expect(screen.queryByText("Keep, fix, try")).not.toBeInTheDocument();
   });
@@ -65,7 +81,7 @@ describe("RetroScreen", () => {
   });
 
   test("announces phase changes, including ones made by others", () => {
-    vi.mocked(useQuery).mockReturnValue(retro);
+    mockRetro(retro);
     const { rerender } = render(<RetroScreen slug="k7f3q9xa" />);
     expect(toast).not.toHaveBeenCalled();
     for (const [state, message] of [
@@ -73,7 +89,7 @@ describe("RetroScreen", () => {
       ["finished", "Retro finished"],
       ["not_started", "Retro reset · all data kept"],
     ]) {
-      vi.mocked(useQuery).mockReturnValue({ ...retro, state });
+      mockRetro({ ...retro, state });
       rerender(<RetroScreen slug="k7f3q9xa" />);
       expect(toast).toHaveBeenLastCalledWith(message);
     }
@@ -81,7 +97,7 @@ describe("RetroScreen", () => {
 
   test("copies the share link", async () => {
     const user = userEvent.setup();
-    vi.mocked(useQuery).mockReturnValue(retro);
+    mockRetro(retro);
     render(<RetroScreen slug="k7f3q9xa" />);
     await user.click(screen.getByRole("button", { name: /Copy link/ }));
     await expect(navigator.clipboard.readText()).resolves.toBe(`${window.location.origin}/r/k7f3q9xa`);
@@ -91,7 +107,7 @@ describe("RetroScreen", () => {
   test("shows the link when the clipboard is blocked", async () => {
     const user = userEvent.setup();
     vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("denied"));
-    vi.mocked(useQuery).mockReturnValue(retro);
+    mockRetro(retro);
     render(<RetroScreen slug="k7f3q9xa" />);
     await user.click(screen.getByRole("button", { name: /Copy link/ }));
     await waitFor(() =>

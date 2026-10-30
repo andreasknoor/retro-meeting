@@ -356,9 +356,9 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] On mobile the phase bar is not sticky and the stepper scrolls horizontally
 - **Done when:** two browsers show the same countdown (±1 s), and either one can advance the phase.
 
-### M3 — Pulse check (0.5 day)
-- [ ] `participantId` helper; `pulse.answer` / `pulse.summary`
-- [ ] Pulse card with result bars and the "You answered" badge; optimistic update
+### M3 — Pulse check (0.5 day) ✅ v0.5
+- [x] `participantId` helper; `pulse.answer` / `pulse.summary`
+- [x] Pulse card with result bars and the "You answered" badge; optimistic update
 - **Done when:** the average and distribution update live across browsers, and changing an answer does not double-count.
 
 ### M4 — Idea board (1.5 days)

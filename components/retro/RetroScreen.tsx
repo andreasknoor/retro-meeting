@@ -8,14 +8,17 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
 import { PHASE_LABELS } from "@/convex/lib/agenda";
+import { useParticipantId } from "@/lib/participant";
 import { forgetRetro, rememberRetro } from "@/lib/recentRetros";
 import { AgendaCard } from "./AgendaCard";
 import { PhaseBar } from "./PhaseBar";
+import { PulseCard } from "./PulseCard";
 import { RetroHeader } from "./RetroHeader";
 import type { Retro } from "./types";
 
 export function RetroScreen({ slug }: { slug: string }) {
   const retro = useQuery(api.retros.getBySlug, { slug });
+  const participantId = useParticipantId();
 
   useEffect(() => {
     if (retro) rememberRetro(slug);
@@ -34,6 +37,9 @@ export function RetroScreen({ slug }: { slug: string }) {
       <main className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6">
         <div className="grid gap-5 lg:grid-cols-[1fr_1.25fr]">
           <AgendaCard retro={retro} />
+          {participantId && retro.enabledPhases.includes("intro") && (
+            <PulseCard retro={retro} participantId={participantId} />
+          )}
         </div>
       </main>
     </>

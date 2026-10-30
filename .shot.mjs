@@ -12,6 +12,7 @@ await p.getByRole("button", { name: "Create retro" }).click();
 await p.waitForURL(/\/r\//);
 for (const step of (process.env.STEPS ?? "").split(";").filter(Boolean)) {
   const [kind, ...rest] = step.split(":"); const arg = rest.join(":");
+  if (kind === "clickre") await p.getByRole("button", { name: new RegExp(arg) }).first().click();
   if (kind === "click") await p.getByRole("button", { name: arg, exact: true }).first().click();
   if (kind === "fill") { const [label, text] = arg.split("="); await p.getByLabel(label).first().fill(text); }
   if (kind === "press") await p.keyboard.press(arg);
