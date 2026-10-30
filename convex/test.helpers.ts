@@ -9,7 +9,7 @@ export const ALL_PHASES: Phase[] = ["intro", "brainstorm", "vote", "discuss"];
 /** Inserts a retro directly (skips the scrypt action) and returns its slug. */
 export async function seedRetro(
   t: TestConvex<typeof schema>,
-  overrides: { slug?: string; enabledPhases?: Phase[]; lengthMin?: number } = {},
+  overrides: { slug?: string; enabledPhases?: Phase[]; lengthMin?: number; adminControlsPhases?: boolean } = {},
 ): Promise<string> {
   const slug = overrides.slug ?? "retro001";
   await t.mutation(internal.retros.insert, {
@@ -22,6 +22,8 @@ export async function seedRetro(
     enabledPhases: overrides.enabledPhases ?? ALL_PHASES,
     passwordHash: "hash",
     passwordSalt: "salt",
+    // Most tests drive phases without a session; admin-only control is tested in phase.test.ts.
+    adminControlsPhases: overrides.adminControlsPhases ?? false,
   });
   return slug;
 }

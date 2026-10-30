@@ -1,16 +1,14 @@
 "use client";
 
-import { useAction } from "convex/react";
 import { Check } from "lucide-react";
-import { ConvexError } from "convex/values";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { createRetro } from "@/app/actions/retro";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { api } from "@/convex/_generated/api";
 import { calcAgenda, LENGTH_PRESETS, PHASE_LABELS, PHASES, type Phase } from "@/convex/lib/agenda";
 import { LIMITS, validateRetroInput } from "@/convex/lib/validation";
 import { todayIso } from "@/lib/format";
@@ -20,7 +18,6 @@ import { cn } from "@/lib/utils";
 
 export function NewRetroForm() {
   const router = useRouter();
-  const create = useAction(api.retrosNode.create);
 
   const [name, setName] = useState("");
   const [subtitle, setSubtitle] = useState("");
@@ -33,6 +30,7 @@ export function NewRetroForm() {
   const [enabled, setEnabled] = useState<Phase[]>([...PHASES]);
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
+  const [adminControlsPhases, setAdminControlsPhases] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -53,7 +51,14 @@ export function NewRetroForm() {
 
     setSubmitting(true);
     try {
-      const { slug } = await create(input);
+      // Server action: creates the retro and logs us in as admin (HTTP-only cookie).
+      const result = await createRetro({ ...input, adminControlsPhases });
+      if (!result.ok) {
+        setErrors([result.error]);
+        setSubmitting(false);
+        return;
+      }
+      const { slug } = result;
       rememberRetro(slug);
       const link = retroUrl(window.location.origin, slug);
       const copied = await navigator.clipboard?.writeText(link).then(
@@ -62,8 +67,8 @@ export function NewRetroForm() {
       );
       toast.success(copied ? "Retro created · link copied" : "Retro created");
       router.push(`/r/${slug}`);
-    } catch (err) {
-      setErrors([err instanceof ConvexError ? String(err.data) : "Something went wrong. Please try again."]);
+    } catch {
+      setErrors(["Something went wrong. Please try again."]);
       setSubmitting(false);
     }
   }
@@ -112,6 +117,22 @@ export function NewRetroForm() {
               ))}
             </div>
           </fieldset>
+
+          <label className="flex cursor-pointer items-start gap-2.5 text-sm sm:col-span-2">
+            <input
+              type="checkbox"
+              className="mt-0.5 accent-primary"
+              checked={adminControlsPhases}
+              onChange={(e) => setAdminControlsPhases(e.target.checked)}
+            />
+            <span>
+              <span className="font-medium">Only the admin can switch phases</span>
+              <span className="block text-muted-foreground">
+                You are logged in as admin after creating the retro. Uncheck to let everyone with the link control the
+                phases and the timer.
+              </span>
+            </span>
+          </label>
 
           <div className="grid gap-2 sm:col-span-2">
             <span className="text-sm font-medium">Agenda (calculated, editable later in admin)</span>

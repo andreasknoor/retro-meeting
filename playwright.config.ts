@@ -8,6 +8,8 @@ const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:3100";
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
+  // Creating a retro or logging in runs a Convex Node action, which can cold-start.
+  timeout: 90_000,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: { baseURL, trace: "on-first-retry" },

@@ -49,7 +49,7 @@ describe("login", () => {
     const { t, login } = await setup();
     const { token } = await login();
     const sessions = await t.run((ctx) => ctx.db.query("adminSessions").collect());
-    expect(sessions).toHaveLength(1);
+    expect(sessions).toHaveLength(2); // creator's auto-login + this login
     expect(JSON.stringify(sessions)).not.toContain(token);
   });
 
@@ -106,6 +106,17 @@ describe("admin operations", () => {
     ).rejects.toThrow("Your admin session has expired.");
   });
 
+  test("switches who controls the phases", async () => {
+    const { t, slug, login } = await setup();
+    const { token } = await login();
+    await t.mutation(api.admin.updateSettings, { slug, token, adminControlsPhases: false });
+    expect((await t.query(api.retros.getBySlug, { slug }))!.adminControlsPhases).toBe(false);
+    await t.mutation(api.phase.startNext, { slug, from: "not_started" });
+    await expect(t.mutation(api.admin.updateSettings, { slug, token: "forged", adminControlsPhases: true })).rejects.toThrow(
+      "Your admin session has expired.",
+    );
+  });
+
   test("ignores durations of disabled phases", async () => {
     const t = convexTest(schema, modules);
     const { slug } = await t.action(api.retrosNode.create, {
@@ -138,7 +149,7 @@ describe("admin operations", () => {
     const ideaId = await t.mutation(api.ideas.add, { slug, participantId: ALICE, column: "keep", text: "Idea", initials: "" });
     await t.mutation(api.pulse.answer, { slug, participantId: ALICE, score: 4 });
     await t.mutation(api.actions.add, { slug, text: "Do it", owner: "Alex", dueDate: "2026-11-01" });
-    for (const from of ["not_started", "intro", "brainstorm"] as const) await t.mutation(api.phase.startNext, { slug, from });
+    for (const from of ["not_started", "intro", "brainstorm"] as const) await t.mutation(api.phase.startNext, { slug, from, token });
     await t.mutation(api.votes.toggle, { ideaId, participantId: ALICE });
     await expect(login("wrong")).rejects.toThrow();
 

@@ -96,6 +96,39 @@ describe("phase.extend / endEarly / reset", () => {
   });
 });
 
+describe("admin-only phase control", () => {
+  test("rejects participants without an admin session", async () => {
+    const { t, slug } = await setup();
+    await t.run(async (ctx) => {
+      const retro = (await ctx.db.query("retros").first())!;
+      await ctx.db.patch("retros", retro._id, { adminControlsPhases: true });
+    });
+    for (const call of [
+      () => t.mutation(api.phase.startNext, { slug, from: "not_started" }),
+      () => t.mutation(api.phase.startNext, { slug, from: "not_started", token: "forged" }),
+      () => t.mutation(api.phase.extend, { slug, from: "not_started" }),
+      () => t.mutation(api.phase.endEarly, { slug, from: "not_started" }),
+      () => t.mutation(api.phase.reset, { slug }),
+    ]) {
+      await expect(call()).rejects.toThrow("Only the admin can switch phases.");
+    }
+  });
+
+  test("the admin session from creating the retro can switch", async () => {
+    vi.useRealTimers();
+    const t = convexTest(schema, modules);
+    const { slug, token } = await t.action(api.retrosNode.create, {
+      name: "R", subtitle: "", date: "2026-10-28", lengthMin: 30, facilitator: "F",
+      enabledPhases: ["intro", "brainstorm"], password: "secret1",
+    });
+    await t.mutation(api.phase.startNext, { slug, from: "not_started", token });
+    await t.mutation(api.phase.extend, { slug, from: "intro", token });
+    await t.mutation(api.phase.endEarly, { slug, from: "intro", token });
+    await t.mutation(api.phase.reset, { slug, token });
+    expect((await t.query(api.retros.getBySlug, { slug }))!.state).toBe("not_started");
+  });
+});
+
 test("clock.now returns the server time", async () => {
   const t = convexTest(schema, modules);
   expect(await t.action(api.clock.now, {})).toBe(T0);

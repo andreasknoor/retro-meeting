@@ -1,10 +1,12 @@
 "use client";
 
-import { useMutation } from "convex/react";
-import { Check } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import { Fragment, useState } from "react";
+import { toast } from "sonner";
+import { adminLogin } from "@/app/actions/admin";
+import { type PhaseCommand, switchPhase } from "@/app/actions/retro";
 import { Button } from "@/components/ui/button";
-import { api } from "@/convex/_generated/api";
+import { Input } from "@/components/ui/input";
 import { orderPhases, PHASE_LABELS } from "@/convex/lib/agenda";
 import { nextState, phaseIndex } from "@/convex/lib/phases";
 import { formatClock, remainingSec } from "@/lib/timer";
@@ -12,14 +14,24 @@ import { useServerNow } from "@/lib/useServerClock";
 import { cn } from "@/lib/utils";
 import type { Retro } from "./types";
 
-export function PhaseBar({ retro }: { retro: Retro }) {
-  const startNext = useMutation(api.phase.startNext);
-  const extend = useMutation(api.phase.extend);
-  const endEarly = useMutation(api.phase.endEarly);
-  const reset = useMutation(api.phase.reset);
+type Props = {
+  retro: Retro;
+  /** Whether this browser holds an admin session for the retro. */
+  isAdmin: boolean;
+  onAdminLogin: () => void;
+};
+
+export function PhaseBar({ retro, isAdmin, onAdminLogin }: Props) {
   const [confirmReset, setConfirmReset] = useState(false);
 
   const { slug, state } = retro;
+  const canControl = !retro.adminControlsPhases || isAdmin;
+
+  async function run(command: PhaseCommand) {
+    const result = await switchPhase(slug, command, state);
+    if (!result.ok) toast.error(result.error);
+  }
+
   const phases = orderPhases(retro.enabledPhases);
   const current = phaseIndex(state, retro.enabledPhases);
   const next = nextState(state, retro.enabledPhases);
@@ -58,7 +70,9 @@ export function PhaseBar({ retro }: { retro: Retro }) {
         <PhaseTimer retro={retro} />
 
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-          {confirmReset ? (
+          {!canControl ? (
+            <PhaseLock slug={slug} onAdminLogin={onAdminLogin} />
+          ) : confirmReset ? (
             <span className="flex items-center gap-2 rounded-full bg-destructive/10 py-1 pr-1 pl-3 text-sm font-semibold text-destructive">
               Reset phases? Data is kept.
               <Button
@@ -66,7 +80,7 @@ export function PhaseBar({ retro }: { retro: Retro }) {
                 variant="destructive"
                 onClick={() => {
                   setConfirmReset(false);
-                  void reset({ slug });
+                  void run("reset");
                 }}
               >
                 Reset
@@ -78,14 +92,14 @@ export function PhaseBar({ retro }: { retro: Retro }) {
           ) : (
             <>
               {state !== "finished" && (
-                <Button onClick={() => void startNext({ slug, from: state })}>
+                <Button onClick={() => void run("startNext")}>
                   {next === "finished" ? "Finish retro" : `Start ${PHASE_LABELS[next as keyof typeof PHASE_LABELS]}`}
                 </Button>
               )}
-              <Button variant="outline" disabled={!running} onClick={() => void extend({ slug, from: state })}>
+              <Button variant="outline" disabled={!running} onClick={() => void run("extend")}>
                 +1 min
               </Button>
-              <Button variant="outline" disabled={!running} onClick={() => void endEarly({ slug, from: state })}>
+              <Button variant="outline" disabled={!running} onClick={() => void run("endEarly")}>
                 End early
               </Button>
               <Button variant="link" disabled={state === "not_started"} onClick={() => setConfirmReset(true)}>
@@ -96,6 +110,58 @@ export function PhaseBar({ retro }: { retro: Retro }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Shown instead of the controls when only the admin may switch phases. */
+function PhaseLock({ slug, onAdminLogin }: { slug: string; onAdminLogin: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function login(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const result = await adminLogin(slug, password);
+    setBusy(false);
+    setPassword("");
+    if (result.ok) {
+      toast.success("Logged in as admin");
+      onAdminLogin();
+    } else {
+      toast.error(result.error);
+    }
+  }
+
+  if (!open) {
+    return (
+      <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        The facilitator controls the phases.
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+          <Lock className="size-3.5" /> Log in to control
+        </Button>
+      </span>
+    );
+  }
+  return (
+    <form onSubmit={login} className="flex flex-wrap items-center gap-2" aria-label="Admin login">
+      <Input
+        type="password"
+        aria-label="Admin password"
+        placeholder="Admin password"
+        autoComplete="current-password"
+        autoFocus
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        className="w-44"
+      />
+      <Button type="submit" size="sm" disabled={busy || !password}>
+        {busy ? "Checking…" : "Log in"}
+      </Button>
+      <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
+        Cancel
+      </Button>
+    </form>
   );
 }
 

@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
+import { newSession } from "./adminNode";
 import { validateRetroInput } from "./lib/validation";
 import { phaseValidator } from "./schema";
 
@@ -38,14 +39,18 @@ export const create = action({
     facilitator: v.string(),
     enabledPhases: v.array(phaseValidator),
     password: v.string(),
+    /** Only the admin may switch phases; default on (decision after v0.10). */
+    adminControlsPhases: v.optional(v.boolean()),
   },
-  returns: v.object({ slug: v.string() }),
+  /** The creator knows the password, so they get an admin session right away (auto-login). */
+  returns: v.object({ slug: v.string(), token: v.string(), expiresAt: v.number() }),
   handler: async (ctx, args) => {
     const errors = validateRetroInput(args);
     if (errors.length > 0) throw new ConvexError(errors.join(" "));
 
     const salt = randomBytes(16);
     const passwordHash = await hashPassword(args.password, salt);
+    const { token, tokenHash, expiresAt } = newSession();
 
     for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
       const slug = generateSlug();
@@ -59,8 +64,10 @@ export const create = action({
         enabledPhases: args.enabledPhases,
         passwordHash,
         passwordSalt: salt.toString("hex"),
+        adminControlsPhases: args.adminControlsPhases ?? true,
+        session: { tokenHash, expiresAt },
       });
-      if (inserted) return { slug };
+      if (inserted) return { slug, token, expiresAt };
     }
     throw new ConvexError("Could not create the retro. Please try again.");
   },

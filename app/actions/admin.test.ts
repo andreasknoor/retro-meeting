@@ -8,6 +8,7 @@ import {
   adminLogin,
   adminLogout,
   adminSaveAgenda,
+  adminSaveSettings,
   isAdmin,
 } from "./admin";
 
@@ -80,6 +81,8 @@ describe("admin server actions", () => {
     expect(fetchMutation).toHaveBeenLastCalledWith(expect.anything(), { slug: SLUG, token: "tok", agenda });
     expect(await adminDeleteIdea(SLUG, "i1" as never)).toEqual({ ok: true });
     expect(fetchMutation).toHaveBeenLastCalledWith(expect.anything(), { slug: SLUG, token: "tok", ideaId: "i1" });
+    expect(await adminSaveSettings(SLUG, false)).toEqual({ ok: true });
+    expect(fetchMutation).toHaveBeenLastCalledWith(expect.anything(), { slug: SLUG, token: "tok", adminControlsPhases: false });
   });
 
   test("deleting the retro also drops the cookie", async () => {
@@ -94,5 +97,6 @@ describe("admin server actions", () => {
     expect(await adminSaveAgenda(SLUG, { intro: 1, brainstorm: 1, vote: 1, discuss: 1 })).toEqual(expired);
     expect(await adminDeleteIdea(SLUG, "i1" as never)).toEqual(expired);
     expect(await adminDeleteRetro(SLUG, "x")).toEqual(expired);
+    expect(await adminSaveSettings(SLUG, true)).toEqual(expired);
   });
 });

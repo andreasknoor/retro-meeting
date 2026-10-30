@@ -1,21 +1,28 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useAction, useMutation } from "convex/react";
+import { useAction } from "convex/react";
+import { toast } from "sonner";
+import { adminLogin } from "@/app/actions/admin";
+import { switchPhase } from "@/app/actions/retro";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { AgendaCard } from "./AgendaCard";
 import { PhaseBar } from "./PhaseBar";
 import type { Retro } from "./types";
 
-vi.mock("convex/react", () => ({ useMutation: vi.fn(), useAction: vi.fn() }));
+vi.mock("convex/react", () => ({ useAction: vi.fn() }));
+vi.mock("@/app/actions/retro", () => ({ switchPhase: vi.fn() }));
+vi.mock("@/app/actions/admin", () => ({ adminLogin: vi.fn() }));
+vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }));
 
 const NOW = 1_000_000;
-const mutate = vi.fn();
+const mutate = vi.mocked(switchPhase);
+const onAdminLogin = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(NOW);
-  vi.mocked(useMutation).mockReturnValue(mutate as never);
+  mutate.mockResolvedValue({ ok: true });
   vi.mocked(useAction).mockReturnValue(vi.fn().mockResolvedValue(NOW) as never);
 });
 
@@ -31,13 +38,14 @@ const base: Retro = {
   state: "not_started",
   phaseStartedAt: null,
   phaseDurationSec: null,
+  adminControlsPhases: false,
 };
 
 const timer = () => screen.getByRole("timer");
 
 describe("PhaseBar", () => {
   test("before the start: shows the first phase's length and offers to start it", () => {
-    render(<PhaseBar retro={base} />);
+    render(<PhaseBar retro={base} isAdmin={false} onAdminLogin={onAdminLogin} />);
     expect(timer()).toHaveTextContent("Not started04:00");
     expect(screen.getByRole("button", { name: "Start Intro & Pulse" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "+1 min" })).toBeDisabled();
@@ -47,7 +55,7 @@ describe("PhaseBar", () => {
 
   test("running: counts down and sends the seen state with each control", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    render(<PhaseBar retro={{ ...base, state: "brainstorm", phaseStartedAt: NOW - 95_000, phaseDurationSec: 480 }} />);
+    render(<PhaseBar retro={{ ...base, state: "brainstorm", phaseStartedAt: NOW - 95_000, phaseDurationSec: 480 }} isAdmin={false} onAdminLogin={onAdminLogin} />);
     expect(timer()).toHaveTextContent("Brainstorm06:25");
     expect(within(screen.getByRole("list", { name: "Phases" })).getByText("Brainstorm").closest("li")).toHaveAttribute(
       "aria-current",
@@ -55,46 +63,93 @@ describe("PhaseBar", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Start Vote" }));
-    expect(mutate).toHaveBeenLastCalledWith({ slug: "k7f3q9xa", from: "brainstorm" });
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "startNext", "brainstorm");
     await user.click(screen.getByRole("button", { name: "+1 min" }));
-    expect(mutate).toHaveBeenLastCalledWith({ slug: "k7f3q9xa", from: "brainstorm" });
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "extend", "brainstorm");
     await user.click(screen.getByRole("button", { name: "End early" }));
-    expect(mutate).toHaveBeenCalledTimes(3);
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "endEarly", "brainstorm");
   });
 
   test("overtime is shown with a plus sign", () => {
-    render(<PhaseBar retro={{ ...base, state: "vote", phaseStartedAt: NOW - 383_000, phaseDurationSec: 300 }} />);
+    render(<PhaseBar retro={{ ...base, state: "vote", phaseStartedAt: NOW - 383_000, phaseDurationSec: 300 }} isAdmin={false} onAdminLogin={onAdminLogin} />);
     expect(timer()).toHaveTextContent("+01:23");
   });
 
   test("ended early: shows Ended and still offers the next phase", () => {
-    render(<PhaseBar retro={{ ...base, state: "discuss" }} />);
+    render(<PhaseBar retro={{ ...base, state: "discuss" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
     expect(timer()).toHaveTextContent("DiscussEnded");
     expect(screen.getByRole("button", { name: "Finish retro" })).toBeInTheDocument();
   });
 
   test("finished: no start button", () => {
-    render(<PhaseBar retro={{ ...base, state: "finished" }} />);
+    render(<PhaseBar retro={{ ...base, state: "finished" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
     expect(timer()).toHaveTextContent("Finished00:00");
     expect(screen.queryByRole("button", { name: /Start|Finish/ })).not.toBeInTheDocument();
   });
 
   test("reset asks inline before resetting", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    render(<PhaseBar retro={{ ...base, state: "vote" }} />);
+    render(<PhaseBar retro={{ ...base, state: "vote" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
     await user.click(screen.getByRole("button", { name: "Reset" }));
     expect(screen.getByText("Reset phases? Data is kept.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(mutate).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Reset" }));
     await user.click(screen.getByRole("button", { name: "Reset" }));
-    expect(mutate).toHaveBeenCalledWith({ slug: "k7f3q9xa" });
+    expect(mutate).toHaveBeenCalledWith("k7f3q9xa", "reset", "vote");
   });
 
   test("leaves disabled phases out of the stepper", () => {
-    render(<PhaseBar retro={{ ...base, enabledPhases: ["brainstorm", "discuss"] }} />);
+    render(<PhaseBar retro={{ ...base, enabledPhases: ["brainstorm", "discuss"] }} isAdmin={false} onAdminLogin={onAdminLogin} />);
     expect(within(screen.getByRole("list", { name: "Phases" })).queryByText("Vote")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Brainstorm" })).toBeInTheDocument();
+  });
+});
+
+describe("PhaseBar with admin-only control", () => {
+  const locked = { ...base, adminControlsPhases: true };
+
+  test("participants see a hint instead of the controls", () => {
+    render(<PhaseBar retro={locked} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    expect(screen.getByText("The facilitator controls the phases.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Start/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("timer")).toHaveTextContent("Not started");
+  });
+
+  test("the admin sees the controls", () => {
+    render(<PhaseBar retro={locked} isAdmin onAdminLogin={onAdminLogin} />);
+    expect(screen.getByRole("button", { name: "Start Intro & Pulse" })).toBeInTheDocument();
+  });
+
+  test("inline login unlocks the controls", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    vi.mocked(adminLogin).mockResolvedValueOnce({ ok: false, error: "Wrong password. 4 attempts left." }).mockResolvedValueOnce({ ok: true });
+    render(<PhaseBar retro={locked} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    await user.click(screen.getByRole("button", { name: /Log in to control/ }));
+    const field = screen.getByLabelText("Admin password");
+    expect(field).toHaveFocus();
+    await user.type(field, "nope{Enter}");
+    expect(toast.error).toHaveBeenCalledWith("Wrong password. 4 attempts left.");
+    expect(onAdminLogin).not.toHaveBeenCalled();
+    await user.type(field, "secret1{Enter}");
+    expect(adminLogin).toHaveBeenLastCalledWith("k7f3q9xa", "secret1");
+    expect(onAdminLogin).toHaveBeenCalled();
+  });
+
+  test("the login can be cancelled", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<PhaseBar retro={locked} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    await user.click(screen.getByRole("button", { name: /Log in to control/ }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByText("The facilitator controls the phases.")).toBeInTheDocument();
+  });
+
+  test("shows the server's refusal", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mutate.mockResolvedValueOnce({ ok: false, error: "Only the admin can switch phases." });
+    render(<PhaseBar retro={locked} isAdmin onAdminLogin={onAdminLogin} />);
+    await user.click(screen.getByRole("button", { name: "Start Intro & Pulse" }));
+    expect(toast.error).toHaveBeenCalledWith("Only the admin can switch phases.");
   });
 });
 

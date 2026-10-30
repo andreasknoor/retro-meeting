@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminDeleteRetro, adminLogin, adminLogout, adminSaveAgenda, isAdmin } from "@/app/actions/admin";
+import { adminDeleteRetro, adminLogin, adminLogout, adminSaveAgenda, adminSaveSettings, isAdmin } from "@/app/actions/admin";
 import type { Retro } from "@/components/retro/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -133,6 +133,12 @@ function AdminPanel({ retro, onLoggedOut }: { retro: Retro; onLoggedOut: () => v
     else toast.error(result.error);
   }
 
+  async function setPhaseControl(adminControlsPhases: boolean) {
+    const result = await adminSaveSettings(retro.slug, adminControlsPhases);
+    if (result.ok) toast.success(adminControlsPhases ? "Only you can switch phases now" : "Everyone can switch phases now");
+    else toast.error(result.error);
+  }
+
   async function remove() {
     const result = await adminDeleteRetro(retro.slug, confirmName);
     if (result.ok) {
@@ -176,6 +182,24 @@ function AdminPanel({ retro, onLoggedOut }: { retro: Retro; onLoggedOut: () => v
             Admin
           </CardAction>
         </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Phase control</CardTitle>
+          <CardDescription>Decide who may start phases, extend or end them, and reset the retro.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <input
+              type="checkbox"
+              className="accent-primary"
+              checked={retro.adminControlsPhases}
+              onChange={(e) => void setPhaseControl(e.target.checked)}
+            />
+            <span className="font-medium">Only the admin can switch phases</span>
+          </label>
+        </CardContent>
       </Card>
 
       <Card>

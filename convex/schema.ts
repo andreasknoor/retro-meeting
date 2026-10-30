@@ -39,6 +39,8 @@ export default defineSchema({
     state: stateValidator,
     phaseStartedAt: v.optional(v.number()),
     phaseDurationSec: v.optional(v.number()),
+    // Only the admin may switch phases. Missing on retros created before v0.11 = anyone may.
+    adminControlsPhases: v.optional(v.boolean()),
     passwordHash: v.string(),
     passwordSalt: v.string(),
   }).index("by_slug", ["slug"]),

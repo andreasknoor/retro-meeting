@@ -1,18 +1,29 @@
-import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
+import { mutation, type MutationCtx } from "./_generated/server";
+import { adminRetro } from "./lib/adminAuth";
 import { nextState } from "./lib/phases";
 import { getRetroOrThrow } from "./lib/retroAccess";
 import { stateValidator } from "./schema";
 
-// Anyone with the link can control phases (decision B.5). Every mutation takes the state the
-// caller saw (`from`); if someone else switched first, the click is ignored instead of
-// skipping a phase.
+// Who may switch phases is set per retro: only the admin (default) or anyone with the link.
+// `token` is the admin session token, passed in by the Next.js server from the HTTP-only cookie.
+// Every mutation takes the state the caller saw (`from`); if someone else switched first, the
+// click is ignored instead of skipping a phase.
+
+async function controllableRetro(ctx: MutationCtx, slug: string, token: string | undefined): Promise<Doc<"retros">> {
+  const retro = await getRetroOrThrow(ctx, slug);
+  if (retro.adminControlsPhases && !(await adminRetro(ctx, slug, token ?? "", Date.now()))) {
+    throw new ConvexError("Only the admin can switch phases.");
+  }
+  return retro;
+}
 
 export const startNext = mutation({
-  args: { slug: v.string(), from: stateValidator },
+  args: { slug: v.string(), from: stateValidator, token: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx, { slug, from }) => {
-    const retro = await getRetroOrThrow(ctx, slug);
+  handler: async (ctx, { slug, from, token }) => {
+    const retro = await controllableRetro(ctx, slug, token);
     if (retro.state !== from || from === "finished") return null;
     const next = nextState(from, retro.enabledPhases);
     if (next === "finished" || next === "not_started") {
@@ -29,10 +40,10 @@ export const startNext = mutation({
 });
 
 export const extend = mutation({
-  args: { slug: v.string(), from: stateValidator },
+  args: { slug: v.string(), from: stateValidator, token: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx, { slug, from }) => {
-    const retro = await getRetroOrThrow(ctx, slug);
+  handler: async (ctx, { slug, from, token }) => {
+    const retro = await controllableRetro(ctx, slug, token);
     if (retro.state !== from || retro.phaseStartedAt === undefined || retro.phaseDurationSec === undefined) return null;
     await ctx.db.patch("retros", retro._id, { phaseDurationSec: retro.phaseDurationSec + 60 });
     return null;
@@ -41,10 +52,10 @@ export const extend = mutation({
 
 /** Stops the timer; the phase stays current until someone starts the next one. */
 export const endEarly = mutation({
-  args: { slug: v.string(), from: stateValidator },
+  args: { slug: v.string(), from: stateValidator, token: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx, { slug, from }) => {
-    const retro = await getRetroOrThrow(ctx, slug);
+  handler: async (ctx, { slug, from, token }) => {
+    const retro = await controllableRetro(ctx, slug, token);
     if (retro.state !== from || retro.phaseStartedAt === undefined) return null;
     await ctx.db.patch("retros", retro._id, { phaseStartedAt: undefined, phaseDurationSec: undefined });
     return null;
@@ -53,10 +64,10 @@ export const endEarly = mutation({
 
 /** Back to "not started"; ideas, votes, answers and actions are kept. */
 export const reset = mutation({
-  args: { slug: v.string() },
+  args: { slug: v.string(), token: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx, { slug }) => {
-    const retro = await getRetroOrThrow(ctx, slug);
+  handler: async (ctx, { slug, token }) => {
+    const retro = await controllableRetro(ctx, slug, token);
     await ctx.db.patch("retros", retro._id, { state: "not_started", phaseStartedAt: undefined, phaseDurationSec: undefined });
     return null;
   },

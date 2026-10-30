@@ -1,27 +1,39 @@
 import { expect, test } from "./fixtures";
-import { joinAsGuest, timerSeconds } from "./helpers";
+import { E2E_PASSWORD, joinAsGuest, timerSeconds } from "./helpers";
 
-test("two participants share phases and the countdown", async ({ page, browser, newRetro }) => {
+test("only the admin switches phases by default; guests can log in inline", async ({ page, browser, newRetro }) => {
   const url = await newRetro(page);
   const guest = await joinAsGuest(browser, url);
 
+  // The creator is logged in as admin automatically; the guest only sees a hint.
+  await expect(guest.getByText("The facilitator controls the phases.")).toBeVisible();
+  await expect(guest.getByRole("button", { name: /^Start / })).toHaveCount(0);
   await page.getByRole("button", { name: "Start Intro & Pulse" }).click();
-  for (const p of [page, guest]) {
-    await expect(p.getByRole("timer")).toContainText("Intro & Pulse");
-    await expect(p.getByRole("button", { name: "Start Brainstorm" })).toBeVisible();
-  }
+  await expect(guest.getByRole("timer")).toContainText("Intro & Pulse");
 
   // Same countdown in both browsers (±1 s).
   await expect.poll(async () => Math.abs((await timerSeconds(page)) - (await timerSeconds(guest)))).toBeLessThanOrEqual(1);
   expect(await timerSeconds(page)).toBeGreaterThan(200);
 
-  // The guest can switch too; the creator follows live.
-  await guest.getByRole("button", { name: "Start Brainstorm" }).click();
+  await page.getByRole("button", { name: "+1 min" }).click();
+  await expect.poll(() => timerSeconds(guest)).toBeGreaterThan(4 * 60);
+
+  // A co-facilitator who knows the password takes over.
+  await guest.getByRole("button", { name: /Log in to control/ }).click();
+  await guest.getByLabel("Admin password").fill(E2E_PASSWORD);
+  await guest.getByLabel("Admin password").press("Enter");
+  await guest.getByRole("button", { name: "Start Brainstorm" }).click({ timeout: 30_000 });
   await expect(page.getByRole("timer")).toContainText("Brainstorm");
 
-  await page.getByRole("button", { name: "+1 min" }).click();
-  await expect.poll(() => timerSeconds(guest)).toBeGreaterThan(8 * 60);
+  await guest.context().close();
+});
 
+test("when everyone may switch, guests control phases too", async ({ page, browser, newRetro }) => {
+  const url = await newRetro(page, { anyoneControlsPhases: true });
+  const guest = await joinAsGuest(browser, url);
+
+  await guest.getByRole("button", { name: "Start Intro & Pulse" }).click();
+  await expect(page.getByRole("timer")).toContainText("Intro & Pulse");
   await guest.getByRole("button", { name: "End early" }).click();
   await expect(page.getByRole("timer")).toContainText("Ended");
 

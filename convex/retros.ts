@@ -18,6 +18,7 @@ const publicRetroValidator = v.object({
   state: stateValidator,
   phaseStartedAt: v.union(v.number(), v.null()),
   phaseDurationSec: v.union(v.number(), v.null()),
+  adminControlsPhases: v.boolean(),
 });
 
 // Never return the password hash or salt to clients.
@@ -34,6 +35,7 @@ function toPublic(r: Doc<"retros">) {
     state: r.state,
     phaseStartedAt: r.phaseStartedAt ?? null,
     phaseDurationSec: r.phaseDurationSec ?? null,
+    adminControlsPhases: r.adminControlsPhases ?? false,
   };
 }
 
@@ -73,7 +75,10 @@ export const getManyBySlugs = query({
   },
 });
 
-/** Called by the `create` action after validation and hashing. Returns false on a slug collision. */
+/**
+ * Called by the `create` action after validation and hashing. Also opens the creator's admin
+ * session (auto-login) in the same transaction. Returns false on a slug collision.
+ */
 export const insert = internalMutation({
   args: {
     slug: v.string(),
@@ -85,9 +90,11 @@ export const insert = internalMutation({
     enabledPhases: v.array(phaseValidator),
     passwordHash: v.string(),
     passwordSalt: v.string(),
+    adminControlsPhases: v.boolean(),
+    session: v.optional(v.object({ tokenHash: v.string(), expiresAt: v.number() })),
   },
   returns: v.boolean(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, { session, ...args }) => {
     const taken = await ctx.db
       .query("retros")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
@@ -95,13 +102,14 @@ export const insert = internalMutation({
     if (taken) return false;
 
     const enabledPhases = orderPhases(args.enabledPhases);
-    await ctx.db.insert("retros", {
+    const retroId = await ctx.db.insert("retros", {
       ...args,
       subtitle: args.subtitle || undefined,
       enabledPhases,
       agenda: calcAgenda(args.lengthMin, enabledPhases),
       state: "not_started",
     });
+    if (session) await ctx.db.insert("adminSessions", { retroId, ...session });
     return true;
   },
 });

@@ -107,6 +107,16 @@ export const updateAgenda = mutation({
   },
 });
 
+export const updateSettings = mutation({
+  args: { slug: v.string(), token: v.string(), adminControlsPhases: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { slug, token, adminControlsPhases }) => {
+    const retro = await requireAdmin(ctx, slug, token, Date.now());
+    await ctx.db.patch("retros", retro._id, { adminControlsPhases });
+    return null;
+  },
+});
+
 /** Admins may delete any idea (§4.9). */
 export const removeIdea = mutation({
   args: { slug: v.string(), token: v.string(), ideaId: v.id("ideas") },

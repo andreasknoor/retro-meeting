@@ -13,7 +13,8 @@ vi.mock("convex/react", () => ({
   useMutation: vi.fn(() => Object.assign(vi.fn(), { withOptimisticUpdate: () => vi.fn() })),
   useAction: vi.fn(() => vi.fn().mockResolvedValue(Date.now())),
 }));
-vi.mock("@/app/actions/admin", () => ({ isAdmin: vi.fn(async () => false), adminDeleteIdea: vi.fn() }));
+vi.mock("@/app/actions/admin", () => ({ isAdmin: vi.fn(async () => false), adminDeleteIdea: vi.fn(), adminLogin: vi.fn() }));
+vi.mock("@/app/actions/retro", () => ({ switchPhase: vi.fn() }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn() }) }));
 
 const retro = {
@@ -28,6 +29,7 @@ const retro = {
   state: "not_started",
   phaseStartedAt: null,
   phaseDurationSec: null,
+  adminControlsPhases: true,
 };
 
 function mockRetro(value: unknown) {
@@ -103,6 +105,7 @@ describe("RetroScreen", () => {
     render(<RetroScreen slug="k7f3q9xa" />);
     expect(await screen.findByText("Admin")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open admin area" })).toHaveAttribute("href", "/r/k7f3q9xa/admin");
+    expect(screen.getByRole("button", { name: "Start Intro & Pulse" })).toBeInTheDocument();
   });
 
   test("copies the share link", async () => {

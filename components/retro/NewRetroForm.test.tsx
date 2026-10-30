@@ -1,23 +1,21 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useAction } from "convex/react";
-import { ConvexError } from "convex/values";
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { createRetro } from "@/app/actions/retro";
 import { todayIso } from "@/lib/format";
 import { loadRecent } from "@/lib/recentRetros";
 import { NewRetroForm } from "./NewRetroForm";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
-vi.mock("convex/react", () => ({ useAction: vi.fn() }));
+vi.mock("@/app/actions/retro", () => ({ createRetro: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 
-const create = vi.fn();
+const create = vi.mocked(createRetro);
 
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
-  vi.mocked(useAction).mockReturnValue(create as never);
 });
 
 async function fillValidForm() {
@@ -95,7 +93,7 @@ describe("NewRetroForm", () => {
   });
 
   test("creates the retro, remembers it and opens it", async () => {
-    create.mockResolvedValue({ slug: "k7f3q9xa" });
+    create.mockResolvedValue({ ok: true, slug: "k7f3q9xa" });
     render(<NewRetroForm />);
     const user = await fillValidForm();
     await user.click(screen.getByRole("button", { name: "45 min" }));
@@ -109,18 +107,30 @@ describe("NewRetroForm", () => {
         lengthMin: 45,
         enabledPhases: ["intro", "brainstorm", "vote", "discuss"],
         password: "secret1",
+        adminControlsPhases: true,
       }),
     );
     expect(loadRecent()).toEqual(["k7f3q9xa"]);
   });
 
   test("shows the server's error message", async () => {
-    create.mockRejectedValue(new ConvexError("Date is invalid."));
+    create.mockResolvedValue({ ok: false, error: "Date is invalid." });
     render(<NewRetroForm />);
     const user = await fillValidForm();
     await user.click(screen.getByRole("button", { name: "Create retro" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Date is invalid.");
     expect(screen.getByRole("button", { name: "Create retro" })).toBeEnabled();
+  });
+
+  test("phase control by the admin is on by default and can be switched off", async () => {
+    create.mockResolvedValue({ ok: true, slug: "k7f3q9xa" });
+    render(<NewRetroForm />);
+    const box = screen.getByRole("checkbox", { name: /Only the admin can switch phases/ });
+    expect(box).toBeChecked();
+    const user = await fillValidForm();
+    await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Create retro" }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ adminControlsPhases: false }));
   });
 
   test("shows a generic message for unexpected errors", async () => {

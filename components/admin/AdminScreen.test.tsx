@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useQuery } from "convex/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { adminDeleteRetro, adminLogin, adminLogout, adminSaveAgenda, isAdmin } from "@/app/actions/admin";
+import { adminDeleteRetro, adminLogin, adminLogout, adminSaveAgenda, adminSaveSettings, isAdmin } from "@/app/actions/admin";
 import { loadRecent, rememberRetro } from "@/lib/recentRetros";
 import { AdminScreen } from "./AdminScreen";
 
@@ -14,6 +14,7 @@ vi.mock("@/app/actions/admin", () => ({
   adminLogout: vi.fn(),
   adminSaveAgenda: vi.fn(),
   adminDeleteRetro: vi.fn(),
+  adminSaveSettings: vi.fn(),
   isAdmin: vi.fn(),
 }));
 const push = vi.fn();
@@ -25,6 +26,7 @@ const retro = {
   lengthMin: 30,
   enabledPhases: ["intro", "brainstorm", "vote", "discuss"],
   agenda: { intro: 4, brainstorm: 8, vote: 5, discuss: 13 },
+  adminControlsPhases: true,
 };
 
 beforeEach(() => {
@@ -120,6 +122,19 @@ describe("AdminScreen panel", () => {
     expect(adminDeleteRetro).toHaveBeenLastCalledWith("k7f3q9xa", "Sprint 42 Retro");
     await waitFor(() => expect(push).toHaveBeenCalledWith("/"));
     expect(loadRecent()).toEqual([]);
+  });
+
+  test("switches who controls the phases", async () => {
+    const user = userEvent.setup();
+    vi.mocked(adminSaveSettings).mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false, error: "Your admin session has expired. Please log in again." });
+    render(<AdminScreen slug="k7f3q9xa" />);
+    const box = await screen.findByRole("checkbox", { name: "Only the admin can switch phases" });
+    expect(box).toBeChecked();
+    await user.click(box);
+    expect(adminSaveSettings).toHaveBeenCalledWith("k7f3q9xa", false);
+    expect(toast.success).toHaveBeenCalledWith("Everyone can switch phases now");
+    await user.click(box);
+    expect(toast.error).toHaveBeenCalledWith("Your admin session has expired. Please log in again.");
   });
 
   test("logs out", async () => {

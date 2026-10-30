@@ -39,6 +39,32 @@ describe("retros.create", () => {
     expect(retro!.agenda.vote).toBe(0);
   });
 
+  test("only the admin controls phases by default; can be switched off", async () => {
+    const t = convexTest(schema, modules);
+    const a = await t.action(api.retrosNode.create, input);
+    const b = await t.action(api.retrosNode.create, { ...input, adminControlsPhases: false });
+    expect((await t.query(api.retros.getBySlug, { slug: a.slug }))!.adminControlsPhases).toBe(true);
+    expect((await t.query(api.retros.getBySlug, { slug: b.slug }))!.adminControlsPhases).toBe(false);
+  });
+
+  test("logs the creator in as admin right away", async () => {
+    const t = convexTest(schema, modules);
+    const { slug, token, expiresAt } = await t.action(api.retrosNode.create, input);
+    expect(await t.query(api.admin.validate, { slug, token, now: expiresAt - 1 })).toBe(true);
+    expect(await t.query(api.admin.validate, { slug, token, now: expiresAt + 1 })).toBe(false);
+  });
+
+  test("retros from before the setting let anyone control phases", async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) =>
+      ctx.db.insert("retros", {
+        slug: "legacy01", name: "Old", date: "2026-10-01", lengthMin: 30, facilitator: "F", enabledPhases: ["brainstorm"],
+        agenda: { intro: 0, brainstorm: 30, vote: 0, discuss: 0 }, state: "not_started", passwordHash: "h", passwordSalt: "s",
+      }),
+    );
+    expect((await t.query(api.retros.getBySlug, { slug: "legacy01" }))!.adminControlsPhases).toBe(false);
+  });
+
   test("stores an empty goal as missing", async () => {
     const t = convexTest(schema, modules);
     const { slug } = await t.action(api.retrosNode.create, { ...input, subtitle: "  " });
@@ -88,6 +114,7 @@ describe("retros.insert", () => {
       enabledPhases: ["brainstorm" as const],
       passwordHash: "h",
       passwordSalt: "s",
+      adminControlsPhases: false,
     };
     expect(await t.mutation(internal.retros.insert, row)).toBe(true);
     expect(await t.mutation(internal.retros.insert, row)).toBe(false);

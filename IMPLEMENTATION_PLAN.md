@@ -29,7 +29,6 @@ A lightweight web app for running team retrospectives with many participants in 
 | User accounts / SSO | Link-based access is an explicit requirement, and accounts add friction and GDPR scope. |
 | Configurable columns (beyond Keep / Fix / Try) | The columns are fixed by decision. Keeping them fixed simplifies the data model and UI. |
 | Custom agenda items | Only the agenda *times* are editable. |
-| Role-based phase control (only the facilitator can advance) | Decision: "anyone can switch". We will revisit this if it causes problems. |
 | Integrations (Jira, Slack, export to other tools) | Not needed to validate the core flow. See P2. |
 | Grouping / merging similar ideas | Useful but complex. See P2. |
 
@@ -39,8 +38,8 @@ A lightweight web app for running team retrospectives with many participants in 
 
 | Role | How they are identified | Can do |
 |---|---|---|
-| **Participant** | An anonymous `participantId` (random UUID stored in the browser's `localStorage`) | Pulse check, add/delete own ideas, vote, create/edit action items, switch phases, control the timer |
-| **Retro creator / Admin** | Knows the retro's admin password | Everything a participant can do, plus edit agenda times, delete any idea, delete the retro |
+| **Participant** | An anonymous `participantId` (random UUID stored in the browser's `localStorage`) | Pulse check, add/delete own ideas, vote, create/edit action items; switch phases and control the timer only if the retro allows everyone to |
+| **Retro creator / Admin** | Knows the retro's admin password; the creator is logged in automatically | Everything a participant can do, plus switch phases (always), edit agenda times and phase control, delete any idea, delete the retro |
 
 There is no global super-admin. Each retro's admin password is set when the retro is created.
 
@@ -56,9 +55,10 @@ Set when a retro is created:
 - **Length** in minutes (required; presets 30 / 45 / 60 / 90, default 30)
 - **Facilitator name** (required)
 - **Enabled phases** (checkboxes, all on by default; at least Brainstorm must stay enabled)
+- **Only the admin can switch phases** (checkbox, **on by default**; decision v0.11, replaces B.5 "anyone can switch"). Off = everyone with the link controls phases and the timer
 - **Admin password** (required, min 6 chars, entered twice). The repeat field is re-checked on every keystroke (in either field); as soon as both entries are identical, a green check mark appears next to the repeat field
 
-After creation the app redirects to `/r/<slug>` and shows a **"Copy link"** button.
+After creation the app redirects to `/r/<slug>` and shows a **"Copy link"** button. The creator is **logged in as admin automatically** (session cookie set by the create server action), since they just chose the password.
 
 **Retro identifier:** a random, unguessable 8-character slug (e.g. `/r/k7f3q9xa`). A random slug is used instead of a sequential retro number so that outsiders cannot enumerate retros. Retros are **link-only** (decision Q1): the link is the only way in.
 
@@ -82,11 +82,12 @@ After creation the app redirects to `/r/<slug>` and shows a **"Copy link"** butt
 A sticky bar below the header contains:
 - **Phase stepper:** done phases show ✓, the current one is highlighted, and each shows its planned minutes.
 - **Countdown** (mm:ss) for the current phase. When it reaches 0:00, it turns red and counts the overtime up (`+01:23`). **It never advances automatically.**
-- **Buttons** (available to everyone):
+- **Buttons** (only for the admin by default; for everyone if the retro allows it — see §4.1):
   - `Start <next phase>` ends the current phase and starts the next one with its planned duration
   - `+1 min` extends the current phase
   - `End early` ends the current phase without starting the next one; the timer stops and the bar shows `Start <next phase>`
   - `Reset` sets the retro back to `not_started` but keeps all data (asks for confirmation inline, not in a browser dialog)
+- **Locked for participants:** they see the timer and the stepper, plus the hint "The facilitator controls the phases." and a **"Log in to control"** button that opens an inline password field (same login, lockout and session as the admin area). The server rejects phase mutations without a valid admin session ("Only the admin can switch phases.").
 - **Sync model:** the server stores `phaseStartedAt` and `phaseDurationSec`, and each client computes the remaining time itself. No server-side ticking is needed, and clients stay in sync up to differences in device clocks. These differences are compensated by a server-time offset measured when the page loads.
 
 ### 4.4 Pulse check
@@ -145,6 +146,7 @@ A sticky bar below the header contains:
 ### 4.9 Admin area
 - `/r/<slug>/admin` shows a password prompt. On success it creates an admin session for this retro (an HTTP-only cookie storing a token; the token's hash is stored in the database; valid for 12 h).
 - Once logged in, the admin can:
+  - switch **who controls the phases** (only the admin / everyone)
   - edit the agenda **phase durations** (number inputs, live total vs. retro length)
   - delete the retro, after typing its name to confirm; this cascades to all ideas, votes, pulse answers and actions
   - use a `New retro` shortcut
@@ -389,6 +391,13 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] E2E tests delete every retro they create (fixture `newRetro`), so runs against production leave no data behind
 - **Done when:** a wrong password is rejected and locked out after 5 attempts, and a deleted retro disappears everywhere it is open in real time.
 
+### M7.5 — Admin-only phase control (0.5 day) ✅ v0.11
+- [x] Per-retro setting `adminControlsPhases` (create form checkbox, default on; switch in the admin area). Retros created before v0.11 keep "anyone may switch"
+- [x] Phase mutations require a valid admin session when the setting is on; they are called through a server action that reads the session cookie
+- [x] Auto-login: creating a retro runs through a server action that also opens the creator's admin session (same transaction as the retro) and sets the cookie
+- [x] Phase bar for participants: hint + inline admin login
+- [x] Tests: backend lock and auto-login, server actions, components, E2E (admin mode with inline takeover, open mode)
+
 ### M8 — Polish, QA & launch (1.5 days)
 - [ ] Responsive pass, keyboard navigation, focus states, ARIA labels on vote and score buttons
 - [ ] Empty, loading and error states (unknown slug → 404 page; Convex disconnected → banner)
@@ -452,7 +461,7 @@ CI runs lint, typecheck, unit and backend tests on every pull request. E2E tests
 | Hobby plan terms | The account could be suspended if usage becomes commercial | Usage is private (Q2). If that changes, move to Pro; the code works unchanged |
 | A lost link means a lost retro on other devices | Old retros are hard to find again | "Recent retros" per browser; prominent `Copy link`; P1: export with link |
 | Vote manipulation (new browser = new identity) | Skewed votes | Acceptable for internal trust-based use; P2: an optional name prompt or one link per participant |
-| "Anyone can switch phase" leads to accidental skips | Confusion during the meeting | The stepper shows who switched in a toast ("Phase changed to Vote"); `Reset` exists; P1: an optional facilitator lock |
+| Facilitator drops out while phases are locked | Retro stuck in a phase | Anyone with the password can log in inline from the phase bar; ideas, pulse check and free-text actions keep working in every phase |
 | Lost admin password | Retro cannot be deleted | Clear warning at creation; P1: an optional recovery code shown once |
 | Free-tier limits exceeded | App stops working | Load test in M8; queries return only the fields they need; no polling |
 | Device clock drift | Different timer values | Server-time offset from `serverNow` |
@@ -462,7 +471,6 @@ CI runs lint, typecheck, unit and backend tests on every pull request. E2E tests
 ## 14. Future Considerations (P1 / P2)
 
 **P1 (fast follow)**
-- Optional facilitator lock for the phase controls
 - Mark action items as done; show open actions of previous retros
 - Export a retro as Markdown or PDF (e.g. for Obsidian or Confluence)
 - Recovery code for the admin password

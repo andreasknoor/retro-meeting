@@ -23,7 +23,7 @@ export function RetroScreen({ slug }: { slug: string }) {
   const retro = useQuery(api.retros.getBySlug, { slug });
   const participantId = useParticipantId();
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
-  const admin = useAdminStatus(slug);
+  const [admin, setAdmin] = useAdminStatus(slug);
 
   useEffect(() => {
     if (retro) rememberRetro(slug);
@@ -38,7 +38,7 @@ export function RetroScreen({ slug }: { slug: string }) {
   return (
     <>
       <RetroHeader {...retro} isAdmin={admin} />
-      <PhaseBar retro={retro} />
+      <PhaseBar retro={retro} isAdmin={admin} onAdminLogin={() => setAdmin(true)} />
       <main className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6">
         <div className="grid gap-5 lg:grid-cols-[1fr_1.25fr]">
           <AgendaCard retro={retro} />
@@ -78,7 +78,7 @@ export function RetroScreen({ slug }: { slug: string }) {
 }
 
 /** Whether this browser holds an admin session (HTTP-only cookie, checked on the server). */
-function useAdminStatus(slug: string): boolean {
+function useAdminStatus(slug: string): [boolean, (admin: boolean) => void] {
   const [admin, setAdmin] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +90,7 @@ function useAdminStatus(slug: string): boolean {
       cancelled = true;
     };
   }, [slug]);
-  return admin;
+  return [admin, setAdmin];
 }
 
 /** Tells everyone when the phase changes (it may have been switched by someone else). */
