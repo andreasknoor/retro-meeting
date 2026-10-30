@@ -6,13 +6,15 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
 import { newSession } from "./adminNode";
+import { enforce } from "./lib/rateLimits";
 import { validateRetroInput } from "./lib/validation";
 import { phaseValidator } from "./schema";
 
 const scryptAsync = promisify(scrypt) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
 
 const SLUG_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
-const SLUG_LENGTH = 8;
+// 36^12 ≈ 62 bits, so links cannot be guessed (8 characters until v1.2; those links stay valid).
+const SLUG_LENGTH = 12;
 const MAX_SLUG_ATTEMPTS = 5;
 
 export function generateSlug(): string {
@@ -47,6 +49,8 @@ export const create = action({
   handler: async (ctx, args) => {
     const errors = validateRetroInput(args);
     if (errors.length > 0) throw new ConvexError(errors.join(" "));
+    // Before hashing, so spam does not cost scrypt time.
+    await enforce(ctx, "createRetro");
 
     const salt = randomBytes(16);
     const passwordHash = await hashPassword(args.password, salt);

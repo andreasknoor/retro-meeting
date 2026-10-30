@@ -5,6 +5,9 @@ name: E2E
 on:
   status:
 
+permissions:
+  contents: read
+
 jobs:
   e2e:
     if: >-

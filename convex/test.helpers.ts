@@ -1,8 +1,16 @@
 // Helpers for convex-test only; not a Convex function module.
-import type { TestConvex } from "convex-test";
+import rateLimiter from "@convex-dev/rate-limiter/test";
+import { convexTest, type TestConvex } from "convex-test";
 import { internal } from "./_generated/api";
 import type { Phase } from "./lib/agenda";
 import schema from "./schema";
+
+/** convex-test with the components from convex.config.ts registered. */
+export function newTest(modules: Record<string, () => Promise<unknown>>): TestConvex<typeof schema> {
+  const t = convexTest(schema, modules);
+  rateLimiter.register(t);
+  return t;
+}
 
 export const ALL_PHASES: Phase[] = ["intro", "brainstorm", "vote", "discuss"];
 

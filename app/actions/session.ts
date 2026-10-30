@@ -2,10 +2,10 @@
 // Not a "use server" module: nothing here is callable from the browser.
 import { ConvexError } from "convex/values";
 import { cookies } from "next/headers";
+import { SLUG } from "@/lib/slug";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-const SLUG = /^[a-z0-9]{8}$/;
 const cookieName = (slug: string) => `retro_admin_${slug}`;
 
 export function assertSlug(slug: string): void {

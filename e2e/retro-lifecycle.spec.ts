@@ -18,7 +18,7 @@ test("create a retro, open it via link and find it under recent retros", async (
   await expect(page.getByRole("img", { name: "Passwords match" })).toBeVisible();
   await page.getByRole("button", { name: "Create retro" }).click();
 
-  await expect(page).toHaveURL(/\/r\/[a-z0-9]{8}$/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/r\/[a-z0-9]{12}$/, { timeout: 30_000 });
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
   await expect(page.getByText("Created by Playwright")).toBeVisible();
   await expect(page.getByText("45 minutes")).toBeVisible();

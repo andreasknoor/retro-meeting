@@ -1,9 +1,8 @@
 /// <reference types="vite/client" />
-import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import { SESSION_TTL_MS } from "./lib/adminAuth";
-import schema from "./schema";
+import { newTest } from "./test.helpers";
 
 const modules = import.meta.glob("./**/*.ts");
 const PASSWORD = "secret1";
@@ -12,7 +11,7 @@ const ALICE = "alice-0000";
 afterEach(() => vi.useRealTimers());
 
 async function setup() {
-  const t = convexTest(schema, modules);
+  const t = newTest(modules);
   const { slug } = await t.action(api.retrosNode.create, {
     name: "Sprint 42 Retro",
     subtitle: "",
@@ -118,7 +117,7 @@ describe("admin operations", () => {
   });
 
   test("ignores durations of disabled phases", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const { slug } = await t.action(api.retrosNode.create, {
       name: "R", subtitle: "", date: "2026-10-28", lengthMin: 30, facilitator: "F", enabledPhases: ["brainstorm", "discuss"], password: PASSWORD,
     });
@@ -142,13 +141,33 @@ describe("admin operations", () => {
     expect(await t.query(api.ideas.list, { slug: other.slug, participantId: ALICE })).toHaveLength(1);
   });
 
+  test("admins can delete anyone's action, but only in their retro", async () => {
+    const { t, slug, login } = await setup();
+    const { token } = await login();
+    const actionId = await t.mutation(api.actions.add, { slug, participantId: ALICE, text: "Hers", owner: "A", dueDate: "2026-11-01" });
+    const other = await t.action(api.retrosNode.create, {
+      name: "Other", subtitle: "", date: "2026-10-28", lengthMin: 30, facilitator: "B", enabledPhases: ["brainstorm"], password: "other-pw",
+    });
+    const foreign = await t.mutation(api.actions.add, {
+      slug: other.slug, participantId: ALICE, text: "Foreign", owner: "A", dueDate: "2026-11-01",
+    });
+
+    await t.mutation(api.admin.removeAction, { slug, token, actionId: foreign });
+    await t.mutation(api.admin.removeAction, { slug, token, actionId });
+    expect(await t.query(api.actions.list, { slug, participantId: ALICE })).toEqual([]);
+    expect(await t.query(api.actions.list, { slug: other.slug, participantId: ALICE })).toHaveLength(1);
+    await expect(t.mutation(api.admin.removeAction, { slug, token: "forged", actionId: foreign })).rejects.toThrow(
+      "Your admin session has expired.",
+    );
+  });
+
   test("delete retro needs the exact name and removes everything", async () => {
     vi.useFakeTimers();
     const { t, slug, login } = await setup();
     const { token } = await login();
     const ideaId = await t.mutation(api.ideas.add, { slug, participantId: ALICE, column: "keep", text: "Idea", initials: "" });
     await t.mutation(api.pulse.answer, { slug, participantId: ALICE, score: 4 });
-    await t.mutation(api.actions.add, { slug, text: "Do it", owner: "Alex", dueDate: "2026-11-01" });
+    await t.mutation(api.actions.add, { slug, participantId: ALICE, text: "Do it", owner: "Alex", dueDate: "2026-11-01" });
     for (const from of ["not_started", "intro", "brainstorm"] as const) await t.mutation(api.phase.startNext, { slug, from, token });
     await t.mutation(api.votes.toggle, { ideaId, participantId: ALICE });
     await expect(login("wrong")).rejects.toThrow();

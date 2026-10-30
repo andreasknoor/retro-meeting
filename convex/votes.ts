@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { enforce } from "./lib/rateLimits";
 import { assertParticipantId } from "./lib/retroAccess";
 
 /**
@@ -18,6 +19,7 @@ export const toggle = mutation({
     if (!idea) throw new ConvexError("This idea was deleted.");
     const retro = await ctx.db.get("retros", idea.retroId);
     if (retro?.state !== "vote") throw new ConvexError("Voting is only possible during the Vote phase.");
+    await enforce(ctx, "participantWrites", participantId);
 
     const existing = await ctx.db
       .query("votes")

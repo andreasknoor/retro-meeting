@@ -10,7 +10,7 @@ async function showColumn(page: Page, column: string) {
   if (await tab.isVisible()) await tab.click();
 }
 
-test("free-text actions anytime, Make action only in Discuss, visible to everyone", async ({ page, browser, newRetro }) => {
+test("free-text actions anytime, Make action only in Discuss, visible to everyone, deleted by author or admin", async ({ page, browser, newRetro }) => {
   const url = await newRetro(page, { disable: ["Intro & Pulse", "Vote"] });
   const guest = await joinAsGuest(browser, url);
 
@@ -51,6 +51,16 @@ test("free-text actions anytime, Make action only in Discuss, visible to everyon
   await edit.getByLabel("Owner").fill("Kim");
   await edit.getByRole("button", { name: "Save" }).click();
   await expect(actionList(page).getByRole("listitem").first()).toContainText("Kim");
+
+  // Only the author (or the admin) may delete: the guest adds and deletes their own action.
+  await expect(actionList(guest).getByRole("button", { name: "Delete" })).toHaveCount(0);
+  await actionForm(guest).getByLabel("Action").fill("Guest action");
+  await actionForm(guest).getByLabel("Owner").fill("Bo");
+  await actionForm(guest).getByLabel("Due date").fill("2026-12-30");
+  await actionForm(guest).getByRole("button", { name: "Add action" }).click();
+  await actionList(guest).getByRole("listitem").filter({ hasText: "Guest action" }).getByRole("button", { name: "Delete" }).click();
+  await expect(actionList(page)).not.toContainText("Guest action");
+  await expect(actionList(guest).getByRole("listitem")).toHaveCount(2);
 
   await guest.context().close();
 });

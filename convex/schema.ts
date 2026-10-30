@@ -79,6 +79,8 @@ export default defineSchema({
     text: v.string(),
     owner: v.string(),
     dueDate: v.string(), // ISO date
+    // Participant who added it; may delete it (besides the admin). Missing on actions before v1.3.
+    authorId: v.optional(v.string()),
   })
     .index("by_retroId", ["retroId"])
     .index("by_ideaId", ["ideaId"]),

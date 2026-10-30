@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
+import { MAX_RECENT_SLUGS } from "./retros";
 import { generateSlug, hashPassword } from "./retrosNode";
-import schema from "./schema";
+import { newTest } from "./test.helpers";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -19,9 +19,9 @@ const input = {
 
 describe("retros.create", () => {
   test("creates a retro and returns its slug", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const { slug } = await t.action(api.retrosNode.create, input);
-    expect(slug).toMatch(/^[a-z0-9]{8}$/);
+    expect(slug).toMatch(/^[a-z0-9]{12}$/);
 
     const retro = await t.query(api.retros.getBySlug, { slug });
     expect(retro).toMatchObject({
@@ -40,7 +40,7 @@ describe("retros.create", () => {
   });
 
   test("only the admin controls phases by default; can be switched off", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const a = await t.action(api.retrosNode.create, input);
     const b = await t.action(api.retrosNode.create, { ...input, adminControlsPhases: false });
     expect((await t.query(api.retros.getBySlug, { slug: a.slug }))!.adminControlsPhases).toBe(true);
@@ -48,14 +48,14 @@ describe("retros.create", () => {
   });
 
   test("logs the creator in as admin right away", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const { slug, token, expiresAt } = await t.action(api.retrosNode.create, input);
     expect(await t.query(api.admin.validate, { slug, token, now: expiresAt - 1 })).toBe(true);
     expect(await t.query(api.admin.validate, { slug, token, now: expiresAt + 1 })).toBe(false);
   });
 
   test("retros from before the setting let anyone control phases", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     await t.run((ctx) =>
       ctx.db.insert("retros", {
         slug: "legacy01", name: "Old", date: "2026-10-01", lengthMin: 30, facilitator: "F", enabledPhases: ["brainstorm"],
@@ -66,13 +66,13 @@ describe("retros.create", () => {
   });
 
   test("stores an empty goal as missing", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const { slug } = await t.action(api.retrosNode.create, { ...input, subtitle: "  " });
     expect((await t.query(api.retros.getBySlug, { slug }))!.subtitle).toBeNull();
   });
 
   test("stores only a salted hash of the password", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const { slug } = await t.action(api.retrosNode.create, input);
     const doc = await t.run((ctx) =>
       ctx.db.query("retros").withIndex("by_slug", (q) => q.eq("slug", slug)).unique(),
@@ -84,14 +84,14 @@ describe("retros.create", () => {
   });
 
   test("rejects invalid input with all problems", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     await expect(
       t.action(api.retrosNode.create, { ...input, name: "", password: "123" }),
     ).rejects.toThrow(/Name is required\..*Password needs at least 6 characters\./);
   });
 
   test("never returns the password hash or salt", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const { slug } = await t.action(api.retrosNode.create, input);
     const json = JSON.stringify([
       await t.query(api.retros.getBySlug, { slug }),
@@ -103,7 +103,7 @@ describe("retros.create", () => {
 
 describe("retros.insert", () => {
   test("refuses a slug that already exists", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const row = {
       slug: "abcdefgh",
       name: "A",
@@ -123,14 +123,14 @@ describe("retros.insert", () => {
 
 describe("retros.getBySlug", () => {
   test("returns null for an unknown slug", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     expect(await t.query(api.retros.getBySlug, { slug: "nope1234" })).toBeNull();
   });
 });
 
 describe("retros.getManyBySlugs", () => {
   test("returns summaries for known slugs and skips unknown ones", async () => {
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const a = await t.action(api.retrosNode.create, input);
     const b = await t.action(api.retrosNode.create, { ...input, name: "Other" });
     const list = await t.query(api.retros.getManyBySlugs, { slugs: [b.slug, "missing1", a.slug] });
@@ -141,16 +141,16 @@ describe("retros.getManyBySlugs", () => {
   });
 
   test("limits the number of slugs per request", async () => {
-    const t = convexTest(schema, modules);
-    const slugs = Array.from({ length: 51 }, (_, i) => `slug${i}`);
-    await expect(t.query(api.retros.getManyBySlugs, { slugs })).rejects.toThrow(/At most 50/);
+    const t = newTest(modules);
+    const slugs = Array.from({ length: MAX_RECENT_SLUGS + 1 }, (_, i) => `slug${i}`);
+    await expect(t.query(api.retros.getManyBySlugs, { slugs })).rejects.toThrow(`At most ${MAX_RECENT_SLUGS}`);
   });
 });
 
 describe("generateSlug", () => {
-  test("produces 8 lowercase alphanumeric characters", () => {
+  test("produces 12 lowercase alphanumeric characters", () => {
     const slugs = new Set(Array.from({ length: 200 }, generateSlug));
-    for (const s of slugs) expect(s).toMatch(/^[a-z0-9]{8}$/);
+    for (const s of slugs) expect(s).toMatch(/^[a-z0-9]{12}$/);
     expect(slugs.size).toBe(200);
   });
 });

@@ -4,7 +4,7 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { adminDeleteIdea, isAdmin } from "@/app/actions/admin";
+import { adminDeleteAction, adminDeleteIdea, isAdmin } from "@/app/actions/admin";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
@@ -68,7 +68,22 @@ export function RetroScreen({ slug }: { slug: string }) {
             }
           />
         )}
-        <ActionItems retro={retro} draft={actionDraft} onClearDraft={() => setActionDraft(null)} />
+        {participantId && (
+          <ActionItems
+            retro={retro}
+            participantId={participantId}
+            draft={actionDraft}
+            onClearDraft={() => setActionDraft(null)}
+            onAdminDelete={
+              admin
+                ? async (action) => {
+                    const result = await adminDeleteAction(slug, action.id);
+                    return result.ok ? null : result.error;
+                  }
+                : undefined
+            }
+          />
+        )}
         <p className="text-center text-sm text-muted-foreground">
           Admin? <Link href={`/r/${slug}/admin`} className="font-semibold text-primary">Open admin area</Link>
         </p>

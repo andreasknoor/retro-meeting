@@ -20,6 +20,7 @@ import type * as lib_agenda from "../lib/agenda.js";
 import type * as lib_columns from "../lib/columns.js";
 import type * as lib_phases from "../lib/phases.js";
 import type * as lib_pulse from "../lib/pulse.js";
+import type * as lib_rateLimits from "../lib/rateLimits.js";
 import type * as lib_retroAccess from "../lib/retroAccess.js";
 import type * as lib_validation from "../lib/validation.js";
 import type * as phase from "../phase.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   "lib/columns": typeof lib_columns;
   "lib/phases": typeof lib_phases;
   "lib/pulse": typeof lib_pulse;
+  "lib/rateLimits": typeof lib_rateLimits;
   "lib/retroAccess": typeof lib_retroAccess;
   "lib/validation": typeof lib_validation;
   phase: typeof phase;
@@ -82,4 +84,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+};

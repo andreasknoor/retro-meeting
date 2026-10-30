@@ -4,11 +4,11 @@ import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { MAX_ACTIONS } from "./actions";
 import { IDEA_LIMITS, normalizeInitials } from "./lib/columns";
+import { enforce } from "./lib/rateLimits";
 import { assertParticipantId, findRetro, getRetroOrThrow } from "./lib/retroAccess";
 import { columnValidator } from "./schema";
 
-// Bounds every read of a retro's ideas; far above what a 30–90 minute retro produces.
-export const MAX_IDEAS = 300;
+export const MAX_IDEAS = IDEA_LIMITS.perRetro;
 // Checked per author, so concurrent adds by different people never read the same rows
 // (a retro-wide count made every add conflict with every other one under load).
 export const MAX_IDEAS_PER_PARTICIPANT = 30;
@@ -94,6 +94,7 @@ export const add = mutation({
       .take(MAX_IDEAS_PER_PARTICIPANT);
     if (mine.length >= MAX_IDEAS_PER_PARTICIPANT)
       throw new ConvexError(`You can add at most ${MAX_IDEAS_PER_PARTICIPANT} ideas per retro.`);
+    await enforce(ctx, "participantWrites", args.participantId);
 
     return await ctx.db.insert("ideas", {
       retroId: retro._id,

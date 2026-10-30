@@ -9,7 +9,9 @@ export const COLUMN_META: Record<Column, { label: string; question: string }> = 
   try: { label: "Try", question: "What should we try next?" },
 };
 
-export const IDEA_LIMITS = { text: 500, initials: 4 } as const;
+// `perRetro` bounds every read of a retro's ideas; far above what a 30–90 minute retro produces.
+// Only a flood of made-up participants gets past it, and the board then says so.
+export const IDEA_LIMITS = { text: 500, initials: 4, perRetro: 300 } as const;
 
 /** Trimmed, upper-cased initials; empty string means none. */
 export function normalizeInitials(raw: string): string {

@@ -1,17 +1,16 @@
 /// <reference types="vite/client" />
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api } from "./_generated/api";
 import type { Phase } from "./lib/agenda";
 import { MAX_ACTIONS } from "./actions";
-import schema from "./schema";
-import { seedRetro } from "./test.helpers";
+import { newTest, seedRetro } from "./test.helpers";
 
 const modules = import.meta.glob("./**/*.ts");
 const ALICE = "alice-0000";
+const BOB = "bob-000000";
 
 async function setup(enabledPhases?: Phase[]) {
-  const t = convexTest(schema, modules);
+  const t = newTest(modules);
   const slug = await seedRetro(t, { enabledPhases });
   const ideaId = await t.mutation(api.ideas.add, { slug, participantId: ALICE, column: "fix", text: "Flaky tests", initials: "" });
   const goTo = async (target: string) => {
@@ -21,7 +20,7 @@ async function setup(enabledPhases?: Phase[]) {
       state = (await t.query(api.retros.getBySlug, { slug }))!.state;
     }
   };
-  const action = { slug, text: "Quarantine flaky tests", owner: "Alex", dueDate: "2026-11-15" };
+  const action = { slug, participantId: ALICE, text: "Quarantine flaky tests", owner: "Alex", dueDate: "2026-11-15" };
   return { t, slug, ideaId, goTo, action };
 }
 
@@ -31,7 +30,7 @@ describe("actions.add", () => {
     await t.mutation(api.actions.add, { ...action, text: "Later", dueDate: "2026-12-01" });
     await t.mutation(api.actions.add, { ...action, text: " Sooner ", owner: " Sam " });
     expect(
-      (await t.query(api.actions.list, { slug })).map(({ text, owner, dueDate, idea }) => ({ text, owner, dueDate, idea })),
+      (await t.query(api.actions.list, { slug, participantId: ALICE })).map(({ text, owner, dueDate, idea }) => ({ text, owner, dueDate, idea })),
     ).toEqual([
       { text: "Sooner", owner: "Sam", dueDate: "2026-11-15", idea: null },
       { text: "Later", owner: "Alex", dueDate: "2026-12-01", idea: null },
@@ -46,7 +45,7 @@ describe("actions.add", () => {
     );
     await goTo("discuss");
     await t.mutation(api.actions.add, { ...action, ideaId });
-    expect((await t.query(api.actions.list, { slug }))[0].idea).toEqual({ id: ideaId, column: "fix" });
+    expect((await t.query(api.actions.list, { slug, participantId: ALICE }))[0].idea).toEqual({ id: ideaId, column: "fix" });
     expect((await t.query(api.ideas.list, { slug, participantId: ALICE }))[0].hasAction).toBe(true);
   });
 
@@ -84,7 +83,7 @@ describe("actions.add", () => {
       for (let i = 0; i < MAX_ACTIONS; i++) await ctx.db.insert("actions", { retroId, text: `#${i}`, owner: "A", dueDate: "2026-11-01" });
     });
     await expect(t.mutation(api.actions.add, action)).rejects.toThrow("maximum number of actions");
-    expect(await t.query(api.actions.list, { slug })).toHaveLength(MAX_ACTIONS);
+    expect(await t.query(api.actions.list, { slug, participantId: ALICE })).toHaveLength(MAX_ACTIONS);
   });
 });
 
@@ -93,16 +92,41 @@ describe("actions.update / remove", () => {
     const { t, slug, action } = await setup();
     const actionId = await t.mutation(api.actions.add, action);
     await t.mutation(api.actions.update, { actionId, text: "Fix CI", owner: "Kim", dueDate: "2026-11-20" });
-    expect(await t.query(api.actions.list, { slug })).toMatchObject([{ text: "Fix CI", owner: "Kim", dueDate: "2026-11-20" }]);
+    expect(await t.query(api.actions.list, { slug, participantId: ALICE })).toMatchObject([{ text: "Fix CI", owner: "Kim", dueDate: "2026-11-20" }]);
     await expect(t.mutation(api.actions.update, { actionId, text: "x", owner: "", dueDate: "2026-11-20" })).rejects.toThrow(
       "owner",
     );
-    await t.mutation(api.actions.remove, { actionId });
-    await t.mutation(api.actions.remove, { actionId });
-    expect(await t.query(api.actions.list, { slug })).toEqual([]);
+    await t.mutation(api.actions.remove, { actionId, participantId: ALICE });
+    await t.mutation(api.actions.remove, { actionId, participantId: ALICE });
+    expect(await t.query(api.actions.list, { slug, participantId: ALICE })).toEqual([]);
     await expect(
       t.mutation(api.actions.update, { actionId, text: action.text, owner: action.owner, dueDate: action.dueDate }),
     ).rejects.toThrow("This action was deleted.");
+  });
+
+  test("anyone may edit, but only the author deletes; actions from before v1.3 only the admin", async () => {
+    const { t, slug, action } = await setup();
+    const actionId = await t.mutation(api.actions.add, action);
+    expect((await t.query(api.actions.list, { slug, participantId: ALICE }))[0].isMine).toBe(true);
+    expect((await t.query(api.actions.list, { slug, participantId: BOB }))[0].isMine).toBe(false);
+    await t.mutation(api.actions.update, { actionId, text: "Edited by Bob", owner: "Bob", dueDate: "2026-11-20" });
+    await expect(t.mutation(api.actions.remove, { actionId, participantId: BOB })).rejects.toThrow(
+      "Only the person who added this action or the admin can delete it.",
+    );
+    const retroId = (await t.run((ctx) => ctx.db.query("retros").first()))!._id;
+    const legacy = await t.run((ctx) => ctx.db.insert("actions", { retroId, text: "Old", owner: "A", dueDate: "2026-11-01" }));
+    await expect(t.mutation(api.actions.remove, { actionId: legacy, participantId: ALICE })).rejects.toThrow("admin");
+  });
+
+  test("never exposes the author's participant id", async () => {
+    const { t, slug, action } = await setup();
+    await t.mutation(api.actions.add, action);
+    expect(JSON.stringify(await t.query(api.actions.list, { slug, participantId: BOB }))).not.toContain(ALICE);
+  });
+
+  test("rejects a malformed participant", async () => {
+    const { t, action } = await setup();
+    await expect(t.mutation(api.actions.add, { ...action, participantId: "x" })).rejects.toThrow("Invalid participant.");
   });
 
   test("deleting the idea keeps the action but drops the link", async () => {
@@ -110,11 +134,11 @@ describe("actions.update / remove", () => {
     await goTo("discuss");
     await t.mutation(api.actions.add, { ...action, ideaId });
     await t.mutation(api.ideas.remove, { ideaId, participantId: ALICE });
-    expect(await t.query(api.actions.list, { slug })).toMatchObject([{ text: action.text, idea: null }]);
+    expect(await t.query(api.actions.list, { slug, participantId: ALICE })).toMatchObject([{ text: action.text, idea: null }]);
   });
 
   test("unknown retro lists nothing", async () => {
     const { t } = await setup();
-    expect(await t.query(api.actions.list, { slug: "missing1" })).toEqual([]);
+    expect(await t.query(api.actions.list, { slug: "missing1", participantId: ALICE })).toEqual([]);
   });
 });

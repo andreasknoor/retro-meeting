@@ -66,6 +66,16 @@ export async function adminDeleteIdea(slug: string, ideaId: Id<"ideas">): Promis
   }
 }
 
+export async function adminDeleteAction(slug: string, actionId: Id<"actions">): Promise<AdminResult> {
+  assertSlug(slug);
+  try {
+    await fetchMutation(api.admin.removeAction, { slug, token: await readToken(slug), actionId });
+    return { ok: true };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
 export async function adminDeleteRetro(slug: string, confirmName: string): Promise<AdminResult> {
   assertSlug(slug);
   try {

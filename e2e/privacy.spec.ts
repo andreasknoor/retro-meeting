@@ -1,5 +1,4 @@
 import { expect, test } from "./fixtures";
-import { joinAsGuest } from "./helpers";
 
 // Acceptance §10: nothing the browser receives reveals secrets or who wrote / voted / answered what.
 test("realtime traffic contains no secrets or other participants' ids", async ({ page, browser, newRetro }) => {

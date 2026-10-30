@@ -4,7 +4,8 @@ import type { Doc } from "./_generated/dataModel";
 import { calcAgenda, orderPhases } from "./lib/agenda";
 import { agendaValidator, phaseValidator, stateValidator } from "./schema";
 
-export const MAX_RECENT_SLUGS = 50;
+// The home page keeps at most 20 recent retros (lib/recentRetros.ts).
+export const MAX_RECENT_SLUGS = 20;
 
 const publicRetroValidator = v.object({
   slug: v.string(),

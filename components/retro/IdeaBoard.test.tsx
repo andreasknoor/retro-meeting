@@ -74,6 +74,17 @@ const texts = (name: string) =>
     .map((li) => li.querySelector("p")!.firstChild!.textContent);
 
 describe("IdeaBoard", () => {
+  test("says so when the list is cut off at the per-retro limit", () => {
+    vi.mocked(useQuery).mockReturnValue(Array.from({ length: 300 }, (_, i) => idea(`i${i + 1}`, "keep", `Idea ${i}`)));
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("only the first 300 are shown");
+  });
+
+  test("shows no such note for a normal board", () => {
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={vi.fn()} />);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   test.each([
     ["brainstorm", true],
     ["vote", true],

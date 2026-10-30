@@ -15,14 +15,21 @@ import { formatDueDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ActionDraft, ActionItem, Retro } from "./types";
 
-type Props = { retro: Retro; draft: ActionDraft | null; onClearDraft: () => void };
+type Props = {
+  retro: Retro;
+  participantId: string;
+  draft: ActionDraft | null;
+  onClearDraft: () => void;
+  /** Set for the admin, who may delete any action; returns an error message or null. */
+  onAdminDelete?: (action: ActionItem) => Promise<string | null>;
+};
 
 function errorText(err: unknown, fallback: string): string {
   return err instanceof ConvexError ? String(err.data) : fallback;
 }
 
-export function ActionItems({ retro, draft, onClearDraft }: Props) {
-  const actions = useQuery(api.actions.list, { slug: retro.slug });
+export function ActionItems({ retro, participantId, draft, onClearDraft, onAdminDelete }: Props) {
+  const actions = useQuery(api.actions.list, { slug: retro.slug, participantId });
   const count = actions?.length ?? 0;
 
   return (
@@ -39,9 +46,17 @@ export function ActionItems({ retro, draft, onClearDraft }: Props) {
       </CardHeader>
       <CardContent className="grid gap-3">
         {/* Remounts for every "Make action" click so the form starts from that idea. */}
-        <ActionForm key={draft?.requestId ?? "free"} slug={retro.slug} draft={draft} onClearDraft={onClearDraft} />
+        <ActionForm
+          key={draft?.requestId ?? "free"}
+          slug={retro.slug}
+          participantId={participantId}
+          draft={draft}
+          onClearDraft={onClearDraft}
+        />
         <ul className="grid gap-2" aria-label="Actions">
-          {actions?.map((action) => <ActionRow key={action.id} action={action} />)}
+          {actions?.map((action) => (
+            <ActionRow key={action.id} action={action} participantId={participantId} onAdminDelete={onAdminDelete} />
+          ))}
         </ul>
         {actions?.length === 0 && (
           <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">No actions yet.</p>
@@ -51,7 +66,17 @@ export function ActionItems({ retro, draft, onClearDraft }: Props) {
   );
 }
 
-function ActionForm({ slug, draft, onClearDraft }: { slug: string; draft: ActionDraft | null; onClearDraft: () => void }) {
+function ActionForm({
+  slug,
+  participantId,
+  draft,
+  onClearDraft,
+}: {
+  slug: string;
+  participantId: string;
+  draft: ActionDraft | null;
+  onClearDraft: () => void;
+}) {
   const add = useMutation(api.actions.add);
   const [text, setText] = useState(draft?.text.slice(0, ACTION_LIMITS.text) ?? "");
   const [owner, setOwner] = useState("");
@@ -71,7 +96,7 @@ function ActionForm({ slug, draft, onClearDraft }: { slug: string; draft: Action
     e.preventDefault();
     if (!complete) return;
     try {
-      await add({ slug, text, owner, dueDate, ideaId: draft?.ideaId });
+      await add({ slug, participantId, text, owner, dueDate, ideaId: draft?.ideaId });
       setText("");
       setOwner("");
       setDueDate("");
@@ -103,13 +128,33 @@ function ActionForm({ slug, draft, onClearDraft }: { slug: string; draft: Action
   );
 }
 
-function ActionRow({ action }: { action: ActionItem }) {
+function ActionRow({
+  action,
+  participantId,
+  onAdminDelete,
+}: {
+  action: ActionItem;
+  participantId: string;
+  onAdminDelete?: Props["onAdminDelete"];
+}) {
   const update = useMutation(api.actions.update);
   const remove = useMutation(api.actions.remove);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(action.text);
   const [owner, setOwner] = useState(action.owner);
   const [dueDate, setDueDate] = useState(action.dueDate);
+
+  async function deleteAction() {
+    try {
+      if (action.isMine) await remove({ actionId: action.id, participantId });
+      else if (onAdminDelete) {
+        const error = await onAdminDelete(action);
+        if (error) toast.error(error);
+      }
+    } catch (err) {
+      toast.error(errorText(err, "Could not delete the action."));
+    }
+  }
 
   function startEditing() {
     setText(action.text);
@@ -162,13 +207,11 @@ function ActionRow({ action }: { action: ActionItem }) {
         <button type="button" onClick={startEditing} className="font-semibold text-primary">
           Edit
         </button>
-        <button
-          type="button"
-          onClick={() => void remove({ actionId: action.id }).catch((err) => toast.error(errorText(err, "Could not delete the action.")))}
-          className="text-muted-foreground hover:text-destructive"
-        >
-          Delete
-        </button>
+        {(action.isMine || onAdminDelete) && (
+          <button type="button" onClick={() => void deleteAction()} className="text-muted-foreground hover:text-destructive">
+            Delete
+          </button>
+        )}
       </div>
     </li>
   );

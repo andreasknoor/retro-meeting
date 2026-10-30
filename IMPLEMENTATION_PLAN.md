@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.1** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.3** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -38,7 +38,7 @@ A lightweight web app for running team retrospectives with many participants in 
 
 | Role | How they are identified | Can do |
 |---|---|---|
-| **Participant** | An anonymous `participantId` (random UUID stored in the browser's `localStorage`) | Pulse check, add/delete own ideas, vote, create/edit action items; switch phases and control the timer only if the retro allows everyone to |
+| **Participant** | An anonymous `participantId` (random UUID stored in the browser's `localStorage`) | Pulse check, add/delete own ideas, vote, create/edit action items and delete their own; switch phases and control the timer only if the retro allows everyone to |
 | **Retro creator / Admin** | Knows the retro's admin password; the creator is logged in automatically | Everything a participant can do, plus switch phases (always), edit agenda times and phase control, delete any idea, delete the retro |
 
 There is no global super-admin. Each retro's admin password is set when the retro is created.
@@ -60,7 +60,7 @@ Set when a retro is created:
 
 After creation the app redirects to `/r/<slug>` and shows a **"Copy link"** button. The creator is **logged in as admin automatically** (session cookie set by the create server action), since they just chose the password.
 
-**Retro identifier:** a random, unguessable 8-character slug (e.g. `/r/k7f3q9xa`). A random slug is used instead of a sequential retro number so that outsiders cannot enumerate retros. Retros are **link-only** (decision Q1): the link is the only way in.
+**Retro identifier:** a random, unguessable 12-character slug (e.g. `/r/k7f3q9xa2m4p`; 8 characters before v1.3, those links stay valid). A random slug is used instead of a sequential retro number so that outsiders cannot enumerate retros. Retros are **link-only** (decision Q1): the link is the only way in.
 
 ### 4.2 Phases & agenda
 
@@ -133,7 +133,7 @@ A sticky bar below the header contains:
 - The server enforces this: `actions.add` with an `ideaId` is rejected unless the retro is in the `discuss` state (or `finished` when Discuss is disabled).
 - **Required fields:** text, **owner** (free text), **due date** (date picker, shown as dd.mm.yyyy). `Add action` stays disabled until all three are filled.
 - An action created from an idea links back to it: the idea shows an "→ Action" badge, and the action shows "from Fix: …".
-- Everyone can edit (inline) and delete actions.
+- Everyone can edit actions (inline); only the participant who added an action, or the admin, can delete it (v1.3).
 - The list is sorted by due date, then by creation time.
 
 ### 4.8 Home page (no public overview)
@@ -215,7 +215,7 @@ Next.js on Vercel (Hobby)
 ```ts
 // convex/schema.ts (sketch)
 retros: defineTable({
-  slug: v.string(),                 // 8-char random, unique
+  slug: v.string(),                 // 12-char random (8 before v1.3), unique
   name: v.string(),
   subtitle: v.optional(v.string()),
   date: v.string(),                 // ISO date "2026-10-28"
@@ -417,6 +417,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 
 ### Post-1.0 changes
 - [x] v1.1: the card people work in is highlighted per phase (pulse in Intro, idea board in Brainstorm and Vote, action items in Discuss & Act; nothing before the start or after the end; `focusArea` in `convex/lib/phases.ts`). The Discuss phase is now labelled **"Discuss & Act"** (display label only; the internal key stays `discuss`)
+- [x] v1.3 (security review): global limit on new retros (60/hour, checked before hashing) and a per-browser write limit (60/minute, burst 30) via `@convex-dev/rate-limiter` (`convex/lib/rateLimits.ts`); per-retro caps were tried and dropped because any counter shared by a retro made 30 simultaneous voters wait for seconds (load test), so the board instead says when its list is cut off at 300 ideas. Only the author or the admin can delete an action (`admin.removeAction`). 12-character slugs; `getManyBySlugs` takes at most 20. Security headers (CSP with `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`). GitHub workflows run with read-only tokens
 
 **Total: about 9.5 working days.**
 

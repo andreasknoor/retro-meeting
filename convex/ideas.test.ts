@@ -1,17 +1,15 @@
 /// <reference types="vite/client" />
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api } from "./_generated/api";
 import { MAX_IDEAS_PER_PARTICIPANT } from "./ideas";
-import schema from "./schema";
-import { seedRetro } from "./test.helpers";
+import { newTest, seedRetro } from "./test.helpers";
 
 const modules = import.meta.glob("./**/*.ts");
 const ALICE = "alice-0000";
 const BOB = "bob-000000";
 
 async function setup() {
-  const t = convexTest(schema, modules);
+  const t = newTest(modules);
   const slug = await seedRetro(t);
   const add = (participantId: string, column: "keep" | "fix" | "try", text: string, initials = "") =>
     t.mutation(api.ideas.add, { slug, participantId, column, text, initials });

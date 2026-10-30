@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { type Column, COLUMN_META, COLUMNS, normalizeInitials } from "@/convex/lib/columns";
+import { type Column, COLUMN_META, COLUMNS, IDEA_LIMITS, normalizeInitials } from "@/convex/lib/columns";
 import { canMakeActionFromIdea, focusArea, hasReached } from "@/convex/lib/phases";
 import { applyVoteToggle, loadInitials, saveInitials, sortIdeas, topIdea } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
@@ -116,6 +116,11 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
         )}
       </CardHeader>
       <CardContent>
+        {ideas && ideas.length >= IDEA_LIMITS.perRetro && (
+          <p role="status" className="mb-4 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+            This retro has too many ideas to show them all; only the first {IDEA_LIMITS.perRetro} are shown.
+          </p>
+        )}
         <div className="mb-4 flex gap-2 md:hidden" role="tablist" aria-label="Columns">
           {COLUMNS.map((column) => (
             <button

@@ -1,9 +1,7 @@
 /// <reference types="vite/client" />
-import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api } from "./_generated/api";
-import schema from "./schema";
-import { seedRetro } from "./test.helpers";
+import { newTest, seedRetro } from "./test.helpers";
 
 const modules = import.meta.glob("./**/*.ts");
 const T0 = new Date("2026-10-28T10:00:00Z").getTime();
@@ -15,7 +13,7 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 async function setup(enabledPhases?: ("intro" | "brainstorm" | "vote" | "discuss")[]) {
-  const t = convexTest(schema, modules);
+  const t = newTest(modules);
   const slug = await seedRetro(t, { enabledPhases });
   const get = async () => (await t.query(api.retros.getBySlug, { slug }))!;
   return { t, slug, get };
@@ -186,7 +184,7 @@ describe("admin-only phase control", () => {
 
   test("the admin session from creating the retro can switch", async () => {
     vi.useRealTimers();
-    const t = convexTest(schema, modules);
+    const t = newTest(modules);
     const { slug, token } = await t.action(api.retrosNode.create, {
       name: "R", subtitle: "", date: "2026-10-28", lengthMin: 30, facilitator: "F",
       enabledPhases: ["intro", "brainstorm"], password: "secret1",
@@ -202,6 +200,6 @@ describe("admin-only phase control", () => {
 });
 
 test("clock.now returns the server time", async () => {
-  const t = convexTest(schema, modules);
+  const t = newTest(modules);
   expect(await t.action(api.clock.now, {})).toBe(T0);
 });

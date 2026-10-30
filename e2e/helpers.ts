@@ -18,7 +18,7 @@ export async function createRetro(
   await page.getByLabel("Repeat password *").fill(E2E_PASSWORD);
   await page.getByRole("button", { name: "Create retro" }).click();
   // Creating hashes the password in a Convex Node action, which can cold-start for a few seconds.
-  await expect(page).toHaveURL(/\/r\/[a-z0-9]{8}$/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/r\/[a-z0-9]{12}$/, { timeout: 30_000 });
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
   return page.url();
 }

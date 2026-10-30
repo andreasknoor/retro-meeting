@@ -129,6 +129,18 @@ export const removeIdea = mutation({
   },
 });
 
+/** Admins may delete any action. */
+export const removeAction = mutation({
+  args: { slug: v.string(), token: v.string(), actionId: v.id("actions") },
+  returns: v.null(),
+  handler: async (ctx, { slug, token, actionId }) => {
+    const retro = await requireAdmin(ctx, slug, token, Date.now());
+    const action = await ctx.db.get("actions", actionId);
+    if (action && action.retroId === retro._id) await ctx.db.delete("actions", actionId);
+    return null;
+  },
+});
+
 /**
  * Deletes the retro. The retro document goes first, so every open page switches to
  * "not found" at once; the rest is purged in batches in the background.

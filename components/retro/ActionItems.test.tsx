@@ -12,10 +12,11 @@ vi.mock("convex/react", () => ({ useQuery: vi.fn(), useMutation: vi.fn() }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
 
 const mutations = { "actions:add": vi.fn(), "actions:update": vi.fn(), "actions:remove": vi.fn() };
+const ME = "me-000000";
 const retro = { slug: "k7f3q9xa" } as Retro;
 const ACTIONS = [
-  { id: "a1", text: "Quarantine flaky tests", owner: "Alex", dueDate: "2026-11-05", createdAt: 1, idea: { id: "i3", column: "fix" } },
-  { id: "a2", text: "Book a demo slot", owner: "Sam", dueDate: "2026-11-20", createdAt: 2, idea: null },
+  { id: "a1", text: "Quarantine flaky tests", owner: "Alex", dueDate: "2026-11-05", createdAt: 1, isMine: true, idea: { id: "i3", column: "fix" } },
+  { id: "a2", text: "Book a demo slot", owner: "Sam", dueDate: "2026-11-20", createdAt: 2, isMine: false, idea: null },
 ] as ActionItem[];
 const draft: ActionDraft = { requestId: 1, ideaId: "i9" as ActionDraft["ideaId"], text: "Pre-reads before planning", column: "try" };
 
@@ -42,12 +43,12 @@ describe("ActionItems", () => {
     ["vote", false],
     ["finished", false],
   ] as const)("is highlighted in %s: %s", (state, highlighted) => {
-    const { container } = render(<ActionItems retro={{ ...retro, state }} draft={null} onClearDraft={vi.fn()} />);
+    const { container } = render(<ActionItems participantId={ME} retro={{ ...retro, state }} draft={null} onClearDraft={vi.fn()} />);
     expect(container.querySelector('[data-slot="card"]')!.classList.contains("ring-2")).toBe(highlighted);
   });
 
   test("lists actions with owner, due date and origin", () => {
-    render(<ActionItems retro={retro} draft={null} onClearDraft={vi.fn()} />);
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
     expect(screen.getByText("2 actions")).toBeInTheDocument();
     const rows = within(screen.getByRole("list", { name: "Actions" })).getAllByRole("listitem");
     expect(rows[0]).toHaveTextContent("Quarantine flaky testsfrom FixOwnerAlexDue05.11.2026");
@@ -56,7 +57,7 @@ describe("ActionItems", () => {
 
   test("shows the empty state", () => {
     vi.mocked(useQuery).mockReturnValue([]);
-    render(<ActionItems retro={retro} draft={null} onClearDraft={vi.fn()} />);
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
     expect(screen.getByText("None yet")).toBeInTheDocument();
     expect(screen.getByText("No actions yet.")).toBeInTheDocument();
   });
@@ -64,7 +65,7 @@ describe("ActionItems", () => {
   test("Add stays disabled until text, owner and due date are set", async () => {
     const user = userEvent.setup();
     vi.mocked(useQuery).mockReturnValue([ACTIONS[0]]);
-    render(<ActionItems retro={retro} draft={null} onClearDraft={vi.fn()} />);
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
     expect(screen.getByText("1 action")).toBeInTheDocument();
     const add = within(form()).getByRole("button", { name: "Add action" });
     expect(add).toBeDisabled();
@@ -73,6 +74,7 @@ describe("ActionItems", () => {
     await user.click(add);
     expect(mutations["actions:add"]).toHaveBeenCalledWith({
       slug: "k7f3q9xa",
+      participantId: ME,
       text: "Write a runbook",
       owner: "Kim",
       dueDate: "2026-12-01",
@@ -84,7 +86,7 @@ describe("ActionItems", () => {
   test("a draft from Make action pre-fills the text, focuses the owner and links the idea", async () => {
     const user = userEvent.setup();
     const onClearDraft = vi.fn();
-    render(<ActionItems retro={retro} draft={draft} onClearDraft={onClearDraft} />);
+    render(<ActionItems participantId={ME} retro={retro} draft={draft} onClearDraft={onClearDraft} />);
     expect(within(form()).getByLabelText("Action")).toHaveValue("Pre-reads before planning");
     expect(within(form()).getByLabelText("Owner")).toHaveFocus();
     expect(screen.getByText(/From Try: “Pre-reads before planning”/)).toBeInTheDocument();
@@ -98,7 +100,7 @@ describe("ActionItems", () => {
   test("the idea link can be removed and long idea texts are shortened", async () => {
     const user = userEvent.setup();
     const onClearDraft = vi.fn();
-    render(<ActionItems retro={retro} draft={{ ...draft, text: "x".repeat(80) }} onClearDraft={onClearDraft} />);
+    render(<ActionItems participantId={ME} retro={retro} draft={{ ...draft, text: "x".repeat(80) }} onClearDraft={onClearDraft} />);
     expect(screen.getByText(new RegExp(`“${"x".repeat(60)}…”`))).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Unlink idea" }));
     expect(onClearDraft).toHaveBeenCalled();
@@ -108,7 +110,7 @@ describe("ActionItems", () => {
     const user = userEvent.setup();
     mutations["actions:add"].mockRejectedValueOnce(new ConvexError("Ideas can only become actions during the Discuss & Act phase."));
     mutations["actions:add"].mockRejectedValueOnce(new Error("network"));
-    render(<ActionItems retro={retro} draft={null} onClearDraft={vi.fn()} />);
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
     await fill(user, "X", "Y", "2026-12-01");
     await user.click(within(form()).getByRole("button", { name: "Add action" }));
     expect(toast.error).toHaveBeenCalledWith("Ideas can only become actions during the Discuss & Act phase.");
@@ -118,7 +120,7 @@ describe("ActionItems", () => {
 
   test("edits an action inline", async () => {
     const user = userEvent.setup();
-    render(<ActionItems retro={retro} draft={null} onClearDraft={vi.fn()} />);
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
     await user.click(screen.getAllByRole("button", { name: "Edit" })[1]);
     const edit = screen.getByRole("form", { name: "Edit action" });
     await user.clear(within(edit).getByLabelText("Owner"));
@@ -137,7 +139,7 @@ describe("ActionItems", () => {
     const user = userEvent.setup();
     mutations["actions:update"].mockRejectedValueOnce(new ConvexError("Every action needs an owner."));
     mutations["actions:update"].mockRejectedValueOnce(new Error("network"));
-    render(<ActionItems retro={retro} draft={null} onClearDraft={vi.fn()} />);
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
     await user.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     const edit = screen.getByRole("form", { name: "Edit action" });
     await user.clear(within(edit).getByLabelText("Owner"));
@@ -149,13 +151,35 @@ describe("ActionItems", () => {
     expect(screen.queryByRole("form", { name: "Edit action" })).not.toBeInTheDocument();
   });
 
-  test("deletes an action and reports failures", async () => {
+  test("only your own actions can be deleted; failures are reported", async () => {
     const user = userEvent.setup();
-    render(<ActionItems retro={retro} draft={null} onClearDraft={vi.fn()} />);
-    await user.click(screen.getAllByRole("button", { name: "Delete" })[0]);
-    expect(mutations["actions:remove"]).toHaveBeenCalledWith({ actionId: "a1" });
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
+    expect(screen.getAllByRole("button", { name: "Delete" })).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(mutations["actions:remove"]).toHaveBeenCalledWith({ actionId: "a1", participantId: ME });
     mutations["actions:remove"].mockRejectedValueOnce(new Error("network"));
-    await user.click(screen.getAllByRole("button", { name: "Delete" })[0]);
+    await user.click(screen.getByRole("button", { name: "Delete" }));
     await vi.waitFor(() => expect(toast.error).toHaveBeenCalledWith("Could not delete the action."));
+  });
+
+  test("the admin deletes others' actions through the admin callback", async () => {
+    const user = userEvent.setup();
+    const onAdminDelete = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("Your admin session has expired.");
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} onAdminDelete={onAdminDelete} />);
+    const deletes = screen.getAllByRole("button", { name: "Delete" });
+    expect(deletes).toHaveLength(2);
+    await user.click(deletes[1]);
+    expect(onAdminDelete).toHaveBeenCalledWith(ACTIONS[1]);
+    expect(mutations["actions:remove"]).not.toHaveBeenCalled();
+    await user.click(deletes[1]);
+    await vi.waitFor(() => expect(toast.error).toHaveBeenCalledWith("Your admin session has expired."));
+  });
+
+  test("passes the participant when adding", async () => {
+    const user = userEvent.setup();
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
+    await fill(user, "Ship it", "Sam", "2026-12-01");
+    await user.click(within(form()).getByRole("button", { name: "Add action" }));
+    expect(mutations["actions:add"]).toHaveBeenCalledWith(expect.objectContaining({ participantId: ME, text: "Ship it" }));
   });
 });
