@@ -2,7 +2,7 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api } from "./_generated/api";
-import { MAX_IDEAS } from "./ideas";
+import { MAX_IDEAS_PER_PARTICIPANT } from "./ideas";
 import schema from "./schema";
 import { seedRetro } from "./test.helpers";
 
@@ -54,16 +54,11 @@ describe("ideas.add / list", () => {
     ).rejects.toThrow("Retro not found.");
   });
 
-  test(`stops at ${MAX_IDEAS} ideas per retro`, async () => {
-    const { t, slug, add } = await setup();
-    const retroId = (await t.run((ctx) => ctx.db.query("retros").first()))!._id;
-    await t.run(async (ctx) => {
-      for (let i = 0; i < MAX_IDEAS; i++) {
-        await ctx.db.insert("ideas", { retroId, column: "keep", text: `#${i}`, authorId: BOB, voteCount: 0 });
-      }
-    });
-    await expect(add(ALICE, "keep", "One more")).rejects.toThrow("maximum number of ideas");
-    expect(await t.query(api.ideas.list, { slug, participantId: ALICE })).toHaveLength(MAX_IDEAS);
+  test(`limits each participant to ${MAX_IDEAS_PER_PARTICIPANT} ideas`, async () => {
+    const { add } = await setup();
+    for (let i = 0; i < MAX_IDEAS_PER_PARTICIPANT; i++) await add(ALICE, "keep", `#${i}`);
+    await expect(add(ALICE, "keep", "One more")).rejects.toThrow(`at most ${MAX_IDEAS_PER_PARTICIPANT} ideas`);
+    await expect(add(BOB, "keep", "Bob still can")).resolves.toBeDefined();
   });
 
   test("returns an empty list for an unknown retro", async () => {

@@ -29,12 +29,12 @@ export function RetroHeader({ slug, name, subtitle, date, lengthMin, facilitator
     <header className="bg-primary text-primary-foreground">
       <div className="mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-6 px-4 py-7">
         <div className="min-w-0">
-          <div className="mb-1.5 flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] uppercase opacity-80">
-            <span>Retro</span>
+          <div className="mb-1.5 flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] uppercase">
+            <span className="opacity-80">Retro</span>
             <button
               type="button"
               onClick={copyLink}
-              className="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] tracking-wider hover:bg-white/25"
+              className="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] tracking-wider text-white hover:bg-white/25"
             >
               ⧉ Copy link
             </button>

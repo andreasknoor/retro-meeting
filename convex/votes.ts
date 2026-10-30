@@ -5,7 +5,8 @@ import { assertParticipantId } from "./lib/retroAccess";
 /**
  * One vote per participant per column (decision A.2), only during the Vote phase.
  * Voting for the idea you already voted for takes the vote back; voting for another idea in
- * the same column moves it. Runs as one transaction, so voteCount always matches the votes.
+ * the same column moves it. Only the caller's own vote row is read and written, so people voting
+ * at the same time never conflict (counts are computed in ideas.list).
  * Voting for your own idea is allowed (§4.6 default).
  */
 export const toggle = mutation({
@@ -27,18 +28,13 @@ export const toggle = mutation({
 
     if (existing?.ideaId === ideaId) {
       await ctx.db.delete("votes", existing._id);
-      await ctx.db.patch("ideas", ideaId, { voteCount: Math.max(0, idea.voteCount - 1) });
       return "retracted";
     }
     if (existing) {
-      const previous = await ctx.db.get("ideas", existing.ideaId);
-      if (previous) await ctx.db.patch("ideas", previous._id, { voteCount: Math.max(0, previous.voteCount - 1) });
       await ctx.db.patch("votes", existing._id, { ideaId });
-      await ctx.db.patch("ideas", ideaId, { voteCount: idea.voteCount + 1 });
       return "moved";
     }
     await ctx.db.insert("votes", { retroId: idea.retroId, ideaId, column: idea.column, participantId });
-    await ctx.db.patch("ideas", ideaId, { voteCount: idea.voteCount + 1 });
     return "cast";
   },
 });

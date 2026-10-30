@@ -241,7 +241,7 @@ ideas: defineTable({
   column: v.union(v.literal("keep"), v.literal("fix"), v.literal("try")),
   text: v.string(), initials: v.optional(v.string()),
   authorId: v.string(),              // participantId, never exposed to other clients
-  voteCount: v.number(),             // denormalized for sorting
+  voteCount: v.optional(v.number()), // unused since v0.14; counts come from `votes`
 }).index("by_retro", ["retroId"]),
 
 votes: defineTable({
@@ -267,7 +267,7 @@ loginAttempts: defineTable({
 
 **Privacy rules in queries:** `authorId` and `participantId` are never returned to clients. Instead each idea returns `isMine: boolean` and `votedByMe: boolean`, computed from the `participantId` argument. Pulse answers are returned only as aggregates plus the caller's own score.
 
-**Vote integrity:** `castVote(ideaId, participantId)` runs in a single transactional mutation. It looks up the caller's existing vote in that column, then deletes it, moves it, or inserts a new one, and updates `voteCount` on the affected ideas. Because Convex mutations are serializable transactions, two people voting at the same moment cannot corrupt the counts.
+**Vote integrity:** `votes.toggle` reads and writes only the caller's own vote row for that column (cast, move or take back), so people voting at the same time never touch the same documents. Vote counts are computed in `ideas.list` from the `votes` table instead of a counter on the idea (changed in v0.14 after the load test showed write contention on hot ideas). `ideas.add` caps ideas per participant (30) instead of per retro for the same reason.
 
 ---
 
@@ -406,11 +406,11 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] v0.13: going back before Vote deletes all votes after an inline warning (only shown when votes exist); `retros.getBySlug` returns `hasVotes`
 
 ### M8 — Polish, QA & launch (1.5 days)
-- [ ] Responsive pass, keyboard navigation, focus states, ARIA labels on vote and score buttons
-- [ ] Empty, loading and error states (unknown slug → 404 page; Convex disconnected → banner)
-- [ ] Playwright E2E: a full retro with 3 browser contexts running through all phases
-- [ ] Load test with 30 simulated participants; check Convex free-tier usage
-- [ ] Short README (local dev, deploy, env vars)
+- [x] Responsive pass, keyboard navigation, focus states, ARIA labels on vote and score buttons; automated axe-core WCAG 2.1 AA check in E2E (fixed: header and stepper contrast, focusable scroll region)
+- [x] Empty, loading and error states (unknown slug → not-found card, unknown URL → 404 page; Convex disconnected → banner)
+- [x] Playwright E2E: a full retro with 3 browser contexts running through all phases
+- [x] Load test with 30 simulated participants (`npm run loadtest`, dev deployment). Found write contention: `ideas.add` read all ideas for the cap and votes wrote a shared counter → OCC failures and dropped connections. Fixed in v0.14 (per-participant cap of 30 ideas; vote counts computed from `votes`). Result: p95 add idea 373 ms, vote 473 ms, propagation to all ~250 ms, 0 failures; ~2,000 Convex function calls per 30-person retro
+- [x] README (local dev, tests, releases, env vars, security notes)
 - **Done when:** the acceptance checklist in §10 passes on production.
 
 **Total: about 9.5 working days.**

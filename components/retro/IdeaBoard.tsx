@@ -101,14 +101,14 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
         <CardDescription>{boardHint(state, votingOn, byVotes)}</CardDescription>
         {votingOn && (
           <CardAction
-            className={cn("flex items-center gap-1.5 text-sm font-bold text-primary", !votingOpen && "opacity-50")}
+            className={cn("flex items-center gap-1.5 text-sm font-bold", votingOpen ? "text-primary" : "text-muted-foreground")}
             aria-label="Votes left"
           >
             {COLUMNS.map((column) => (
               <span
                 key={column}
                 title={COLUMN_META[column].label}
-                className={cn("size-3 rounded-full border-2 border-primary", votedColumns.has(column) && "bg-primary")}
+                className={cn("size-3 rounded-full border-2 border-current", votedColumns.has(column) && "bg-current")}
               />
             ))}
             <span className="ml-1">{3 - votedColumns.size} of 3 votes left</span>

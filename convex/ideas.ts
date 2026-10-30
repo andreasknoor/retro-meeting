@@ -9,6 +9,11 @@ import { columnValidator } from "./schema";
 
 // Bounds every read of a retro's ideas; far above what a 30–90 minute retro produces.
 export const MAX_IDEAS = 300;
+// Checked per author, so concurrent adds by different people never read the same rows
+// (a retro-wide count made every add conflict with every other one under load).
+export const MAX_IDEAS_PER_PARTICIPANT = 30;
+// One vote per participant and column: 3 × participants.
+export const MAX_VOTES = 3000;
 
 const ideaValidator = v.object({
   id: v.id("ideas"),
@@ -33,13 +38,17 @@ export const list = query({
       .query("ideas")
       .withIndex("by_retroId", (q) => q.eq("retroId", retro._id))
       .take(MAX_IDEAS);
-    const myVotes = await ctx.db
+    // Counts come from the votes themselves, so a vote never writes to a shared idea document.
+    const votes = await ctx.db
       .query("votes")
-      .withIndex("by_retroId_and_participantId_and_column", (q) =>
-        q.eq("retroId", retro._id).eq("participantId", participantId),
-      )
-      .take(3);
-    const votedIds = new Set(myVotes.map((vote) => vote.ideaId));
+      .withIndex("by_retroId_and_participantId_and_column", (q) => q.eq("retroId", retro._id))
+      .take(MAX_VOTES);
+    const counts = new Map<string, number>();
+    const votedIds = new Set<string>();
+    for (const vote of votes) {
+      counts.set(vote.ideaId, (counts.get(vote.ideaId) ?? 0) + 1);
+      if (vote.participantId === participantId) votedIds.add(vote.ideaId);
+    }
     const actions = await ctx.db
       .query("actions")
       .withIndex("by_retroId", (q) => q.eq("retroId", retro._id))
@@ -50,7 +59,7 @@ export const list = query({
       column: idea.column,
       text: idea.text,
       initials: idea.initials ?? null,
-      voteCount: idea.voteCount,
+      voteCount: counts.get(idea._id) ?? 0,
       createdAt: idea._creationTime,
       isMine: idea.authorId === participantId,
       votedByMe: votedIds.has(idea._id),
@@ -79,11 +88,12 @@ export const add = mutation({
       throw new ConvexError(`Initials can have at most ${IDEA_LIMITS.initials} characters.`);
 
     const retro = await getRetroOrThrow(ctx, args.slug);
-    const existing = await ctx.db
+    const mine = await ctx.db
       .query("ideas")
-      .withIndex("by_retroId", (q) => q.eq("retroId", retro._id))
-      .take(MAX_IDEAS);
-    if (existing.length >= MAX_IDEAS) throw new ConvexError("This retro has reached the maximum number of ideas.");
+      .withIndex("by_retroId_and_authorId", (q) => q.eq("retroId", retro._id).eq("authorId", args.participantId))
+      .take(MAX_IDEAS_PER_PARTICIPANT);
+    if (mine.length >= MAX_IDEAS_PER_PARTICIPANT)
+      throw new ConvexError(`You can add at most ${MAX_IDEAS_PER_PARTICIPANT} ideas per retro.`);
 
     return await ctx.db.insert("ideas", {
       retroId: retro._id,
@@ -91,7 +101,6 @@ export const add = mutation({
       text,
       initials: initials || undefined,
       authorId: args.participantId,
-      voteCount: 0,
     });
   },
 });

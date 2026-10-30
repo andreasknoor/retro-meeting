@@ -17,7 +17,7 @@ export function IdeaCard({ idea, topLabel, children, actions, onDelete }: Props)
   return (
     <li
       className={cn(
-        "animate-in rounded-xl border-2 border-transparent bg-card px-4 py-3 shadow-xs fade-in slide-in-from-top-1",
+        "animate-in rounded-xl border-2 border-transparent bg-card px-4 py-3 shadow-xs fade-in slide-in-from-top-1 motion-reduce:animate-none",
         topLabel && "border-primary",
       )}
     >

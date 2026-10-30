@@ -29,7 +29,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       // components/ is reported for information; only convex/ and lib/ are gated.
-      include: ["convex/**/*.ts", "lib/**/*.ts", "components/retro/**/*.tsx", "components/admin/**/*.tsx", "app/actions/**/*.ts"],
+      include: ["convex/**/*.ts", "lib/**/*.ts", "components/retro/**/*.tsx", "components/admin/**/*.tsx", "components/ConnectionBanner.tsx", "app/actions/**/*.ts"],
       exclude: ["convex/_generated/**", "**/*.test.ts",
         "**/*.test.tsx", "convex/schema.ts", "convex/test.helpers.ts", "lib/utils.ts"],
       reporter: ["text", "json-summary", "html"],

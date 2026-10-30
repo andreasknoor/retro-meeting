@@ -57,8 +57,12 @@ export default defineSchema({
     text: v.string(),
     initials: v.optional(v.string()),
     authorId: v.string(), // participantId; never sent to clients
-    voteCount: v.number(), // denormalized, kept in sync by votes.toggle
-  }).index("by_retroId", ["retroId"]),
+    // Unused since v0.14 (counts are computed from `votes` to avoid write contention); kept
+    // optional so ideas created before stay valid.
+    voteCount: v.optional(v.number()),
+  })
+    .index("by_retroId", ["retroId"])
+    .index("by_retroId_and_authorId", ["retroId", "authorId"]),
 
   votes: defineTable({
     retroId: v.id("retros"),

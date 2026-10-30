@@ -60,11 +60,7 @@ export const back = mutation({
         .withIndex("by_retroId_and_participantId_and_column", (q) => q.eq("retroId", retro._id))
         .take(MAX_VOTES_PER_RETRO);
       if (votes.length > 0 && !discardVotes) throw new ConvexError("Going back deletes all votes. Please confirm.");
-      const touched = new Set(votes.map((vote) => vote.ideaId));
       for (const vote of votes) await ctx.db.delete("votes", vote._id);
-      for (const ideaId of touched) {
-        if (await ctx.db.get("ideas", ideaId)) await ctx.db.patch("ideas", ideaId, { voteCount: 0 });
-      }
     }
     await ctx.db.patch("retros", retro._id, {
       state: previous,

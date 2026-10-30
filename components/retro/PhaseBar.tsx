@@ -48,7 +48,12 @@ export function PhaseBar({ retro, isAdmin, onAdminLogin }: Props) {
   return (
     <div className="z-10 border-b bg-card shadow-sm md:sticky md:top-0">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
-        <ol className="-mx-4 flex w-[calc(100%+2rem)] items-center gap-1.5 overflow-x-auto px-4 md:mx-0 md:w-auto md:flex-wrap md:px-0" aria-label="Phases">
+        <ol
+          className="-mx-4 flex w-[calc(100%+2rem)] items-center gap-1.5 overflow-x-auto px-4 md:mx-0 md:w-auto md:flex-wrap md:px-0"
+          aria-label="Phases"
+          // Scrolls horizontally on phones; focusable so keyboard users can scroll it too.
+          tabIndex={0}
+        >
           {phases.map((phase, i) => (
             <Fragment key={phase}>
               {i > 0 && <li aria-hidden className="h-0.5 w-3 shrink-0 bg-border" />}
@@ -69,7 +74,7 @@ export function PhaseBar({ retro, isAdmin, onAdminLogin }: Props) {
                   {i < current ? <Check className="size-3.5" aria-label="done" /> : i + 1}
                 </span>
                 {PHASE_LABELS[phase]}
-                <span className="font-normal opacity-70">{retro.agenda[phase]} min</span>
+                <span className={cn("font-normal", i !== current && "text-muted-foreground")}>{retro.agenda[phase]} min</span>
               </li>
             </Fragment>
           ))}

@@ -195,7 +195,7 @@ describe("voting", () => {
     render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     expect(voteButton("Keep", 0)).toBeDisabled();
     expect(screen.queryByText(/\d votes?$/)).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Votes left")).toHaveClass("opacity-50");
+    expect(screen.getByLabelText("Votes left")).toHaveClass("text-muted-foreground");
   });
 
   test("during the Vote phase: vote, see counts and votes left", async () => {

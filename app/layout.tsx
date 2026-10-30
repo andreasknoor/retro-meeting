@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
+import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </nav>
         <ConvexClientProvider>
+          <ConnectionBanner />
           <div className="flex-1">{children}</div>
         </ConvexClientProvider>
         <footer className="px-4 py-6 text-center text-xs text-muted-foreground">
