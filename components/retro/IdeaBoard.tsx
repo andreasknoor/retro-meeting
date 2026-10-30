@@ -20,9 +20,11 @@ type Props = {
   participantId: string;
   /** "Make action" on an idea (only enabled when the phase allows it). */
   onMakeAction: (idea: Idea) => void;
+  /** Admins can delete any idea (§4.9); the call goes through a server action. */
+  onAdminDelete?: (idea: Idea) => Promise<string | null>;
 };
 
-export function IdeaBoard({ retro, participantId, onMakeAction }: Props) {
+export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }: Props) {
   const { slug, state, enabledPhases } = retro;
   const ideas = useQuery(api.ideas.list, { slug, participantId });
   const addIdea = useMutation(api.ideas.add).withOptimisticUpdate((store, args) => {
@@ -70,9 +72,13 @@ export function IdeaBoard({ retro, participantId, onMakeAction }: Props) {
     }
   }
 
-  async function remove(ideaId: Id<"ideas">) {
+  async function remove(idea: Idea) {
     try {
-      await removeIdea({ ideaId, participantId });
+      if (idea.isMine) await removeIdea({ ideaId: idea.id, participantId });
+      else {
+        const error = await onAdminDelete?.(idea);
+        if (error) throw new ConvexError(error);
+      }
       toast("Idea deleted");
     } catch (err) {
       toast.error(err instanceof ConvexError ? String(err.data) : "Could not delete the idea.");
@@ -157,7 +163,7 @@ export function IdeaBoard({ retro, participantId, onMakeAction }: Props) {
                       key={idea.id}
                       idea={idea}
                       topLabel={idea === top ? label : null}
-                      onDelete={idea.isMine ? () => void remove(idea.id) : undefined}
+                      onDelete={idea.isMine || onAdminDelete ? () => void remove(idea) : undefined}
                       actions={
                         <button
                           type="button"

@@ -1,5 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
-import { createRetro, joinAsGuest } from "./helpers";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { joinAsGuest } from "./helpers";
 
 const actionForm = (page: Page) => page.getByRole("form", { name: "New action" });
 const actionList = (page: Page) => page.getByRole("list", { name: "Actions" });
@@ -9,8 +10,8 @@ async function showColumn(page: Page, column: string) {
   if (await tab.isVisible()) await tab.click();
 }
 
-test("free-text actions anytime, Make action only in Discuss, visible to everyone", async ({ page, browser }) => {
-  const url = await createRetro(page, { disable: ["Intro & Pulse", "Vote"] });
+test("free-text actions anytime, Make action only in Discuss, visible to everyone", async ({ page, browser, newRetro }) => {
+  const url = await newRetro(page, { disable: ["Intro & Pulse", "Vote"] });
   const guest = await joinAsGuest(browser, url);
 
   // Free text before the retro starts.

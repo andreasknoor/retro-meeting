@@ -76,4 +76,21 @@ export default defineSchema({
   })
     .index("by_retroId", ["retroId"])
     .index("by_ideaId", ["ideaId"]),
+
+  adminSessions: defineTable({
+    retroId: v.id("retros"),
+    tokenHash: v.string(), // SHA-256 of the cookie token; the token itself is never stored
+    expiresAt: v.number(),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_retroId", ["retroId"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  loginAttempts: defineTable({
+    retroId: v.id("retros"),
+    at: v.number(),
+    success: v.boolean(),
+  })
+    .index("by_retroId_and_at", ["retroId", "at"])
+    .index("by_at", ["at"]),
 });

@@ -249,6 +249,25 @@ describe("voting", () => {
   });
 });
 
+describe("admin delete", () => {
+  test("admins see Delete on every idea and the call goes through the admin path", async () => {
+    const user = userEvent.setup();
+    const onAdminDelete = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("Your admin session has expired. Please log in again.");
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} onAdminDelete={onAdminDelete} />);
+    const keepDeletes = within(column("Keep")).getAllByRole("button", { name: "Delete" });
+    expect(keepDeletes).toHaveLength(2);
+    await user.click(keepDeletes[0]);
+    expect(onAdminDelete).toHaveBeenCalledWith(expect.objectContaining({ id: "i1" }));
+    expect(remove).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith("Idea deleted");
+    await user.click(keepDeletes[1]);
+    expect(toast.error).toHaveBeenCalledWith("Your admin session has expired. Please log in again.");
+    // Own ideas still use the participant path.
+    await user.click(within(column("Fix")).getByRole("button", { name: "Delete" }));
+    expect(remove).toHaveBeenCalledWith({ ideaId: "i3", participantId: "me-000000" });
+  });
+});
+
 describe("make action", () => {
   test("is disabled outside Discuss", () => {
     render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);

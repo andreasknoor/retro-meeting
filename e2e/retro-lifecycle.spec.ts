@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { deleteRetro } from "./helpers";
 
 // Creates real retros. In production they are prefixed "E2E" so they can be cleaned up (see helpers.ts).
 test("create a retro, open it via link and find it under recent retros", async ({ page, context }) => {
@@ -14,7 +15,7 @@ test("create a retro, open it via link and find it under recent retros", async (
   await page.getByLabel("Repeat password *").fill("e2e-secret");
   await page.getByRole("button", { name: "Create retro" }).click();
 
-  await expect(page).toHaveURL(/\/r\/[a-z0-9]{8}$/);
+  await expect(page).toHaveURL(/\/r\/[a-z0-9]{8}$/, { timeout: 30_000 });
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
   await expect(page.getByText("Created by Playwright")).toBeVisible();
   await expect(page.getByText("45 minutes")).toBeVisible();
@@ -33,6 +34,8 @@ test("create a retro, open it via link and find it under recent retros", async (
   await page.getByLabel("Have a link?").fill(url);
   await page.getByLabel("Have a link?").press("Enter");
   await expect(page).toHaveURL(url);
+
+  await deleteRetro(page, url, name);
 });
 
 test("shows validation errors for an empty form", async ({ page }) => {

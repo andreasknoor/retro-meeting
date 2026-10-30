@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { adminDeleteIdea, isAdmin } from "@/app/actions/admin";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
@@ -22,6 +23,7 @@ export function RetroScreen({ slug }: { slug: string }) {
   const retro = useQuery(api.retros.getBySlug, { slug });
   const participantId = useParticipantId();
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
+  const admin = useAdminStatus(slug);
 
   useEffect(() => {
     if (retro) rememberRetro(slug);
@@ -35,7 +37,7 @@ export function RetroScreen({ slug }: { slug: string }) {
 
   return (
     <>
-      <RetroHeader {...retro} />
+      <RetroHeader {...retro} isAdmin={admin} />
       <PhaseBar retro={retro} />
       <main className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6">
         <div className="grid gap-5 lg:grid-cols-[1fr_1.25fr]">
@@ -48,6 +50,14 @@ export function RetroScreen({ slug }: { slug: string }) {
           <IdeaBoard
             retro={retro}
             participantId={participantId}
+            onAdminDelete={
+              admin
+                ? async (idea) => {
+                    const result = await adminDeleteIdea(slug, idea.id);
+                    return result.ok ? null : result.error;
+                  }
+                : undefined
+            }
             onMakeAction={(idea) =>
               setActionDraft((prev) => ({
                 requestId: (prev?.requestId ?? 0) + 1,
@@ -59,9 +69,28 @@ export function RetroScreen({ slug }: { slug: string }) {
           />
         )}
         <ActionItems retro={retro} draft={actionDraft} onClearDraft={() => setActionDraft(null)} />
+        <p className="text-center text-sm text-muted-foreground">
+          Admin? <Link href={`/r/${slug}/admin`} className="font-semibold text-primary">Open admin area</Link>
+        </p>
       </main>
     </>
   );
+}
+
+/** Whether this browser holds an admin session (HTTP-only cookie, checked on the server). */
+function useAdminStatus(slug: string): boolean {
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    isAdmin(slug).then(
+      (ok) => !cancelled && setAdmin(ok),
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+  return admin;
 }
 
 /** Tells everyone when the phase changes (it may have been switched by someone else). */

@@ -1,8 +1,8 @@
-import { expect, test } from "@playwright/test";
-import { createRetro, joinAsGuest, timerSeconds } from "./helpers";
+import { expect, test } from "./fixtures";
+import { joinAsGuest, timerSeconds } from "./helpers";
 
-test("two participants share phases and the countdown", async ({ page, browser }) => {
-  const url = await createRetro(page);
+test("two participants share phases and the countdown", async ({ page, browser, newRetro }) => {
+  const url = await newRetro(page);
   const guest = await joinAsGuest(browser, url);
 
   await page.getByRole("button", { name: "Start Intro & Pulse" }).click();
@@ -32,8 +32,8 @@ test("two participants share phases and the countdown", async ({ page, browser }
   await guest.context().close();
 });
 
-test("disabled phases are skipped", async ({ page }) => {
-  await createRetro(page, { disable: ["Intro & Pulse", "Vote"] });
+test("disabled phases are skipped", async ({ page, newRetro }) => {
+  await newRetro(page, { disable: ["Intro & Pulse", "Vote"] });
   await page.getByRole("button", { name: "Start Brainstorm" }).click();
   await expect(page.getByRole("button", { name: "Start Discuss" })).toBeVisible();
   await page.getByRole("button", { name: "Start Discuss" }).click();

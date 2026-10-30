@@ -1,5 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
-import { createRetro, joinAsGuest } from "./helpers";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { joinAsGuest } from "./helpers";
 
 async function addIdea(page: Page, column: "Keep" | "Fix" | "Try", text: string) {
   await mobileTab(page, column);
@@ -17,8 +18,8 @@ function cards(page: Page, column: string) {
   return page.getByRole("region", { name: column }).getByRole("listitem");
 }
 
-test("ideas from three participants appear live in creation order", async ({ page, browser }) => {
-  const url = await createRetro(page);
+test("ideas from three participants appear live in creation order", async ({ page, browser, newRetro }) => {
+  const url = await newRetro(page);
   const bob = await joinAsGuest(browser, url);
   const carol = await joinAsGuest(browser, url);
 

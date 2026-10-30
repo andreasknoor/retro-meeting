@@ -16,7 +16,8 @@ export async function createRetro(
   await page.getByLabel(/Admin password/).fill(E2E_PASSWORD);
   await page.getByLabel("Repeat password *").fill(E2E_PASSWORD);
   await page.getByRole("button", { name: "Create retro" }).click();
-  await expect(page).toHaveURL(/\/r\/[a-z0-9]{8}$/);
+  // Creating hashes the password in a Convex Node action, which can cold-start for a few seconds.
+  await expect(page).toHaveURL(/\/r\/[a-z0-9]{8}$/, { timeout: 30_000 });
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
   return page.url();
 }
@@ -37,4 +38,22 @@ export async function timerSeconds(page: Page): Promise<number> {
   if (!m) throw new Error(`Timer shows "${text}"`);
   const sec = Number(m[2]) * 60 + Number(m[3]);
   return m[1] ? -sec : sec;
+}
+
+/** Logs in to the retro's admin area and deletes it; no-op if it is already gone. */
+export async function deleteRetro(page: Page, url: string, name: string, password = E2E_PASSWORD): Promise<void> {
+  await page.goto(`${url}/admin`);
+  const login = page.getByLabel("Password", { exact: true });
+  const missing = page.getByText("Retro not found");
+  await expect(login.or(missing)).toBeVisible();
+  if (await missing.isVisible()) return;
+  await login.fill(password);
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page.getByLabel("Retro name to confirm")).toBeVisible({ timeout: 30_000 }); // Node action, see above
+  await page.getByLabel("Retro name to confirm").fill(name);
+  await page.getByRole("button", { name: "Delete permanently" }).click();
+  // The page either redirects home or shows "not found" as soon as the deletion is live.
+  await expect(page.getByRole("heading", { name: "Run a retro in minutes." }).or(missing).first()).toBeVisible({
+    timeout: 15_000,
+  });
 }

@@ -1,8 +1,8 @@
-import { expect, test } from "@playwright/test";
-import { createRetro, joinAsGuest } from "./helpers";
+import { expect, test } from "./fixtures";
+import { joinAsGuest } from "./helpers";
 
-test("pulse answers update live and changing an answer does not double-count", async ({ page, browser }) => {
-  const url = await createRetro(page);
+test("pulse answers update live and changing an answer does not double-count", async ({ page, browser, newRetro }) => {
+  const url = await newRetro(page);
   const guest = await joinAsGuest(browser, url);
 
   await page.getByRole("button", { name: /^4\s*Good$/ }).click();
@@ -22,8 +22,8 @@ test("pulse answers update live and changing an answer does not double-count", a
   await guest.context().close();
 });
 
-test("no pulse check when the intro phase is disabled", async ({ page }) => {
-  await createRetro(page, { disable: ["Intro & Pulse"] });
+test("no pulse check when the intro phase is disabled", async ({ page, newRetro }) => {
+  await newRetro(page, { disable: ["Intro & Pulse"] });
   await expect(page.getByText("30-minute agenda")).toBeVisible();
   await expect(page.getByText("Pulse check")).toHaveCount(0);
 });

@@ -11,9 +11,10 @@ type Props = {
   date: string;
   lengthMin: number;
   facilitator: string;
+  isAdmin?: boolean;
 };
 
-export function RetroHeader({ slug, name, subtitle, date, lengthMin, facilitator }: Props) {
+export function RetroHeader({ slug, name, subtitle, date, lengthMin, facilitator, isAdmin }: Props) {
   async function copyLink() {
     const link = retroUrl(window.location.origin, slug);
     try {
@@ -37,6 +38,9 @@ export function RetroHeader({ slug, name, subtitle, date, lengthMin, facilitator
             >
               ⧉ Copy link
             </button>
+            {isAdmin && (
+              <span className="rounded-full bg-amber-200 px-2.5 py-0.5 text-[11px] tracking-wider text-amber-950">Admin</span>
+            )}
           </div>
           <h1 className="text-3xl font-bold tracking-tight break-words sm:text-4xl">{name}</h1>
           {subtitle && <p className="mt-1 text-lg opacity-85">{subtitle}</p>}

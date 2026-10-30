@@ -379,10 +379,14 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] Inline editing and deletion of actions; deleting an idea keeps its action and only drops the link
 - **Done when:** an action can be created from an idea during Discuss and as free text in any phase, and all actions show an owner and a due date.
 
-### M7 — Admin area (1 day)
-- [ ] `admin.login` (scrypt verify, rate limit), the cookie route handler, `validate`
-- [ ] Agenda duration editor with the live total; delete the retro with typed confirmation (cascade)
-- [ ] The admin's Delete on any idea
+### M7 — Admin area (1 day) ✅ v0.9
+- [x] `admin.login` (scrypt verify, rate limit), the cookie route handler, `validate`
+- [x] Agenda duration editor with the live total; delete the retro with typed confirmation (cascade)
+- [x] The admin's Delete on any idea
+- [x] Login attempts are recorded as failures *before* the password check, in the same transaction as the lockout count, so parallel attempts cannot bypass the 5-attempt limit
+- [x] Admin operations run through Next.js server actions (`app/actions/admin.ts`), which read the HTTP-only cookie; the token never reaches browser JavaScript
+- [x] Deleting a retro removes the retro document first (all open pages switch to "not found" live) and purges the rest in scheduled batches; a daily cron removes expired sessions and day-old login attempts
+- [x] E2E tests delete every retro they create (fixture `newRetro`), so runs against production leave no data behind
 - **Done when:** a wrong password is rejected and locked out after 5 attempts, and a deleted retro disappears everywhere it is open in real time.
 
 ### M8 — Polish, QA & launch (1.5 days)

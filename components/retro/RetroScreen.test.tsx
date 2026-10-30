@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { getFunctionName } from "convex/server";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { isAdmin } from "@/app/actions/admin";
 import { loadRecent, rememberRetro } from "@/lib/recentRetros";
 import { RetroScreen } from "./RetroScreen";
 
@@ -12,6 +13,7 @@ vi.mock("convex/react", () => ({
   useMutation: vi.fn(() => Object.assign(vi.fn(), { withOptimisticUpdate: () => vi.fn() })),
   useAction: vi.fn(() => vi.fn().mockResolvedValue(Date.now())),
 }));
+vi.mock("@/app/actions/admin", () => ({ isAdmin: vi.fn(async () => false), adminDeleteIdea: vi.fn() }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn() }) }));
 
 const retro = {
@@ -93,6 +95,14 @@ describe("RetroScreen", () => {
       rerender(<RetroScreen slug="k7f3q9xa" />);
       expect(toast).toHaveBeenLastCalledWith(message);
     }
+  });
+
+  test("shows the admin badge and link for admins", async () => {
+    vi.mocked(isAdmin).mockResolvedValueOnce(true);
+    mockRetro(retro);
+    render(<RetroScreen slug="k7f3q9xa" />);
+    expect(await screen.findByText("Admin")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open admin area" })).toHaveAttribute("href", "/r/k7f3q9xa/admin");
   });
 
   test("copies the share link", async () => {

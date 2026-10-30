@@ -1,5 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
-import { createRetro, joinAsGuest } from "./helpers";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { joinAsGuest } from "./helpers";
 
 async function showColumn(page: Page, column: string) {
   const tab = page.getByRole("tab", { name: new RegExp(`^${column} \\(`) });
@@ -8,8 +9,8 @@ async function showColumn(page: Page, column: string) {
 
 const cards = (page: Page, column: string) => page.getByRole("region", { name: column }).getByRole("listitem");
 
-test("one vote per column, movable, and columns re-rank live", async ({ page, browser }) => {
-  const url = await createRetro(page, { disable: ["Intro & Pulse"] });
+test("one vote per column, movable, and columns re-rank live", async ({ page, browser, newRetro }) => {
+  const url = await newRetro(page, { disable: ["Intro & Pulse"] });
   const guest = await joinAsGuest(browser, url);
 
   for (const text of ["Stand-ups", "Pairing", "Demos"]) {
