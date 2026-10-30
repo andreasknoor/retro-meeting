@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Phase } from "./agenda";
-import { canMakeActionFromIdea, hasReached, nextState, phaseIndex, schedule } from "./phases";
+import { canMakeActionFromIdea, hasReached, nextState, phaseIndex, previousPhase, schedule } from "./phases";
 
 const ALL: Phase[] = ["intro", "brainstorm", "vote", "discuss"];
 const NO_VOTE: Phase[] = ["intro", "brainstorm", "discuss"];
@@ -53,4 +53,17 @@ test("schedule adds start offsets", () => {
     { phase: "brainstorm", startMin: 4, minutes: 10 },
     { phase: "discuss", startMin: 14, minutes: 16 },
   ]);
+});
+
+describe("previousPhase", () => {
+  test("steps back one enabled phase, from finished to the last one", () => {
+    expect(previousPhase("vote", ALL)).toBe("brainstorm");
+    expect(previousPhase("discuss", NO_VOTE)).toBe("brainstorm");
+    expect(previousPhase("finished", ALL)).toBe("discuss");
+  });
+
+  test("there is nothing before the first phase", () => {
+    expect(previousPhase("intro", ALL)).toBeNull();
+    expect(previousPhase("not_started", ALL)).toBeNull();
+  });
 });

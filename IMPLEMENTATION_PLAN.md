@@ -83,6 +83,7 @@ A sticky bar below the header contains:
 - **Phase stepper:** done phases show ✓, the current one is highlighted, and each shows its planned minutes.
 - **Countdown** (mm:ss) for the current phase. When it reaches 0:00, it turns red and counts the overtime up (`+01:23`). **It never advances automatically.**
 - **Buttons** (only for the admin by default; for everyone if the retro allows it — see §4.1):
+  - `← Back` returns to the previous enabled phase (from Finished to the last phase); disabled before the start and in the first phase. **[DEFAULT]** The earlier phase restarts with its full planned duration. Ideas, votes, pulse answers and actions are kept; going back to Vote reopens voting, going back to Brainstorm hides the vote counts again until the next Vote phase
   - `Start <next phase>` ends the current phase and starts the next one with its planned duration
   - `+1 min` extends the current phase
   - `End early` ends the current phase without starting the next one; the timer stops and the bar shows `Start <next phase>`
@@ -397,6 +398,11 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] Auto-login: creating a retro runs through a server action that also opens the creator's admin session (same transaction as the retro) and sets the cookie
 - [x] Phase bar for participants: hint + inline admin login
 - [x] Tests: backend lock and auto-login, server actions, components, E2E (admin mode with inline takeover, open mode)
+
+### M7.6 — Phase "Back" (0.25 day) ✅ v0.12
+- [x] `phase.back` with the same admin lock and stale-click guard (`from`) as the other phase controls
+- [x] `← Back` button in the phase bar (label "Back to <phase>")
+- [x] Tests: state helper, backend (disabled phases, finished, votes kept and voting reopened), component, E2E
 
 ### M8 — Polish, QA & launch (1.5 days)
 - [ ] Responsive pass, keyboard navigation, focus states, ARIA labels on vote and score buttons

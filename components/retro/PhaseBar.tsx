@@ -8,7 +8,7 @@ import { type PhaseCommand, switchPhase } from "@/app/actions/retro";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { orderPhases, PHASE_LABELS } from "@/convex/lib/agenda";
-import { nextState, phaseIndex } from "@/convex/lib/phases";
+import { nextState, phaseIndex, previousPhase } from "@/convex/lib/phases";
 import { formatClock, remainingSec } from "@/lib/timer";
 import { useServerNow } from "@/lib/useServerClock";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,7 @@ export function PhaseBar({ retro, isAdmin, onAdminLogin }: Props) {
   const phases = orderPhases(retro.enabledPhases);
   const current = phaseIndex(state, retro.enabledPhases);
   const next = nextState(state, retro.enabledPhases);
+  const previous = previousPhase(state, retro.enabledPhases);
   const running = retro.phaseStartedAt !== null;
 
   return (
@@ -91,6 +92,15 @@ export function PhaseBar({ retro, isAdmin, onAdminLogin }: Props) {
             </span>
           ) : (
             <>
+              <Button
+                variant="outline"
+                disabled={previous === null}
+                title={previous ? `Back to ${PHASE_LABELS[previous]}` : undefined}
+                aria-label={previous ? `Back to ${PHASE_LABELS[previous]}` : "Back"}
+                onClick={() => void run("back")}
+              >
+                ← Back
+              </Button>
               {state !== "finished" && (
                 <Button onClick={() => void run("startNext")}>
                   {next === "finished" ? "Finish retro" : `Start ${PHASE_LABELS[next as keyof typeof PHASE_LABELS]}`}

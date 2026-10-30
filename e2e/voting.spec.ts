@@ -51,5 +51,10 @@ test("one vote per column, movable, and columns re-rank live", async ({ page, br
   await expect(cards(guest, "Keep").first().getByRole("button", { name: "✓ Voted" })).toBeDisabled();
   await expect(cards(guest, "Keep").first()).toContainText("Pairing");
 
+  // Going back to Vote reopens voting with the votes kept.
+  await page.getByRole("button", { name: "Back to Vote" }).click();
+  await expect(cards(guest, "Keep").first().getByRole("button", { name: "✓ Voted" })).toBeEnabled();
+  await expect(cards(guest, "Keep").first()).toContainText("1 vote");
+
   await guest.context().close();
 });

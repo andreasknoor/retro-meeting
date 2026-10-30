@@ -51,4 +51,11 @@ test("disabled phases are skipped", async ({ page, newRetro }) => {
   await page.getByRole("button", { name: "Start Discuss" }).click();
   await page.getByRole("button", { name: "Finish retro" }).click();
   await expect(page.getByRole("timer")).toContainText("Finished");
+
+  // Back steps over disabled phases and restarts the phase with its full time.
+  await page.getByRole("button", { name: "Back to Discuss" }).click();
+  await expect(page.getByRole("timer")).toContainText("Discuss");
+  await page.getByRole("button", { name: "Back to Brainstorm" }).click();
+  await expect(page.getByRole("timer")).toContainText("Brainstorm");
+  await expect(page.getByRole("button", { name: "Back" })).toBeDisabled();
 });

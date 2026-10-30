@@ -70,6 +70,19 @@ describe("PhaseBar", () => {
     expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "endEarly", "brainstorm");
   });
 
+  test("Back returns to the previous phase and is disabled at the start", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const { rerender } = render(<PhaseBar retro={base} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
+    rerender(<PhaseBar retro={{ ...base, state: "intro" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
+    rerender(<PhaseBar retro={{ ...base, state: "discuss" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    await user.click(screen.getByRole("button", { name: "Back to Vote" }));
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "back", "discuss");
+    rerender(<PhaseBar retro={{ ...base, state: "finished" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    expect(screen.getByRole("button", { name: "Back to Discuss" })).toBeEnabled();
+  });
+
   test("overtime is shown with a plus sign", () => {
     render(<PhaseBar retro={{ ...base, state: "vote", phaseStartedAt: NOW - 383_000, phaseDurationSec: 300 }} isAdmin={false} onAdminLogin={onAdminLogin} />);
     expect(timer()).toHaveTextContent("+01:23");

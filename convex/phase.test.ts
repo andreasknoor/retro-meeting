@@ -60,6 +60,47 @@ describe("phase.startNext", () => {
   });
 });
 
+describe("phase.back", () => {
+  test("goes one phase back and restarts it with its full duration", async () => {
+    const { t, slug, get } = await setup();
+    for (const from of ["not_started", "intro", "brainstorm", "vote"] as const) {
+      await t.mutation(api.phase.startNext, { slug, from });
+    }
+    vi.setSystemTime(T0 + 60_000);
+    await t.mutation(api.phase.back, { slug, from: "discuss" });
+    expect(await get()).toMatchObject({ state: "vote", phaseStartedAt: T0 + 60_000, phaseDurationSec: 5 * 60 });
+  });
+
+  test("from finished back to the last phase; skips disabled phases", async () => {
+    const { t, slug, get } = await setup(["brainstorm", "discuss"]);
+    for (const from of ["not_started", "brainstorm", "discuss"] as const) await t.mutation(api.phase.startNext, { slug, from });
+    await t.mutation(api.phase.back, { slug, from: "finished" });
+    expect((await get()).state).toBe("discuss");
+    await t.mutation(api.phase.back, { slug, from: "discuss" });
+    expect((await get()).state).toBe("brainstorm");
+  });
+
+  test("does nothing in the first phase, before the start, or with a stale state", async () => {
+    const { t, slug, get } = await setup();
+    await t.mutation(api.phase.back, { slug, from: "not_started" });
+    await t.mutation(api.phase.startNext, { slug, from: "not_started" });
+    await t.mutation(api.phase.back, { slug, from: "intro" });
+    await t.mutation(api.phase.back, { slug, from: "vote" });
+    expect((await get()).state).toBe("intro");
+  });
+
+  test("keeps votes and reopens voting when going back to Vote", async () => {
+    const { t, slug, get } = await setup();
+    const ideaId = await t.mutation(api.ideas.add, { slug, participantId: "alice-0000", column: "keep", text: "K", initials: "" });
+    for (const from of ["not_started", "intro", "brainstorm"] as const) await t.mutation(api.phase.startNext, { slug, from });
+    await t.mutation(api.votes.toggle, { ideaId, participantId: "alice-0000" });
+    await t.mutation(api.phase.startNext, { slug, from: "vote" });
+    await t.mutation(api.phase.back, { slug, from: "discuss" });
+    expect((await get()).state).toBe("vote");
+    expect(await t.mutation(api.votes.toggle, { ideaId, participantId: "alice-0000" })).toBe("retracted");
+  });
+});
+
 describe("phase.extend / endEarly / reset", () => {
   test("+1 min extends the running phase", async () => {
     const { t, slug, get } = await setup();
@@ -107,6 +148,7 @@ describe("admin-only phase control", () => {
       () => t.mutation(api.phase.startNext, { slug, from: "not_started" }),
       () => t.mutation(api.phase.startNext, { slug, from: "not_started", token: "forged" }),
       () => t.mutation(api.phase.extend, { slug, from: "not_started" }),
+      () => t.mutation(api.phase.back, { slug, from: "not_started" }),
       () => t.mutation(api.phase.endEarly, { slug, from: "not_started" }),
       () => t.mutation(api.phase.reset, { slug }),
     ]) {
@@ -122,6 +164,8 @@ describe("admin-only phase control", () => {
       enabledPhases: ["intro", "brainstorm"], password: "secret1",
     });
     await t.mutation(api.phase.startNext, { slug, from: "not_started", token });
+    await t.mutation(api.phase.startNext, { slug, from: "intro", token });
+    await t.mutation(api.phase.back, { slug, from: "brainstorm", token });
     await t.mutation(api.phase.extend, { slug, from: "intro", token });
     await t.mutation(api.phase.endEarly, { slug, from: "intro", token });
     await t.mutation(api.phase.reset, { slug, token });

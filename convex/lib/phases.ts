@@ -17,6 +17,11 @@ export function nextState(state: RetroState, enabled: readonly Phase[]): RetroSt
   return phases[phaseIndex(state, enabled) + 1] ?? "finished";
 }
 
+/** The phase "Back" returns to; null before the start and in the first phase. */
+export function previousPhase(state: RetroState, enabled: readonly Phase[]): Phase | null {
+  return orderPhases(enabled)[phaseIndex(state, enabled) - 1] ?? null;
+}
+
 /** True once `phase` is the current phase or lies behind (false if the phase is disabled). */
 export function hasReached(state: RetroState, enabled: readonly Phase[], phase: Phase): boolean {
   return enabled.includes(phase) && phaseIndex(state, enabled) >= phaseIndex(phase, enabled);

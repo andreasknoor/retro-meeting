@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, type MutationCtx } from "./_generated/server";
 import { adminRetro } from "./lib/adminAuth";
-import { nextState } from "./lib/phases";
+import { nextState, previousPhase } from "./lib/phases";
 import { getRetroOrThrow } from "./lib/retroAccess";
 import { stateValidator } from "./schema";
 
@@ -35,6 +35,26 @@ export const startNext = mutation({
         phaseDurationSec: retro.agenda[next] * 60,
       });
     }
+    return null;
+  },
+});
+
+/**
+ * One phase back (e.g. Discuss → Vote when someone moved on too early). The earlier phase
+ * restarts with its full planned duration; ideas, votes and actions are untouched.
+ */
+export const back = mutation({
+  args: { slug: v.string(), from: stateValidator, token: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { slug, from, token }) => {
+    const retro = await controllableRetro(ctx, slug, token);
+    const previous = previousPhase(from, retro.enabledPhases);
+    if (retro.state !== from || previous === null) return null;
+    await ctx.db.patch("retros", retro._id, {
+      state: previous,
+      phaseStartedAt: Date.now(),
+      phaseDurationSec: retro.agenda[previous] * 60,
+    });
     return null;
   },
 });

@@ -28,7 +28,7 @@ export async function createRetro(input: CreateRetroInput): Promise<{ ok: true; 
   }
 }
 
-export type PhaseCommand = "startNext" | "extend" | "endEarly" | "reset";
+export type PhaseCommand = "startNext" | "back" | "extend" | "endEarly" | "reset";
 
 /**
  * Phase controls go through the server so the admin token (if any) can be read from the
