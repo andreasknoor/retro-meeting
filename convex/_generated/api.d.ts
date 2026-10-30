@@ -9,6 +9,10 @@
  */
 
 import type * as health from "../health.js";
+import type * as lib_agenda from "../lib/agenda.js";
+import type * as lib_validation from "../lib/validation.js";
+import type * as retros from "../retros.js";
+import type * as retrosNode from "../retrosNode.js";
 
 import type {
   ApiFromModules,
@@ -18,6 +22,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   health: typeof health;
+  "lib/agenda": typeof lib_agenda;
+  "lib/validation": typeof lib_validation;
+  retros: typeof retros;
+  retrosNode: typeof retrosNode;
 }>;
 
 /**

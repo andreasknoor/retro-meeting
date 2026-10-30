@@ -336,14 +336,16 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] Vitest with two projects: `convex` (edge-runtime + `convex-test`) and `web` (jsdom + Testing Library)
 - [x] Coverage gate (v8): `convex/**` ≥ 90 % lines/functions/statements (85 % branches), `lib/**` ≥ 80 % (75 % branches); CI fails below it, and the summary is shown in the GitHub run
 - [x] Playwright (desktop + mobile) with a smoke test; locally it starts `npm run dev`
-- [x] E2E workflow runs against every successful **production** deployment (previews are behind Vercel Authentication; enabling them needs a protection-bypass secret → later)
+- [x] E2E workflow runs after every successful **production** deployment, triggered by Vercel's commit status (Vercel creates no GitHub deployments, so `deployment_status` never fires). Previews are behind Vercel Authentication; enabling them needs a protection-bypass secret → later
+- [x] E2E retros in production are named `E2E <timestamp>`; they will be cleaned up once deletion exists (M7)
 - [x] Convex AI guidelines installed (`convex/_generated/ai/guidelines.md`); the health query no longer reads the wall clock (guideline: no `Date.now()` in queries)
 - **Rule from here on:** every milestone ships with its tests; new Convex functions without tests fail the coverage gate.
 
-### M1 — Retro lifecycle (1 day)
-- [ ] Schema, `retros.create` (slug, scrypt hash, default agenda calculation), `getBySlug`, `getManyBySlugs`
-- [ ] `/new` form with validation; `/` home with "recent retros" from `localStorage`; `/r/[slug]` header + "Copy link"
-- [ ] Unit tests for agenda scaling and redistribution across disabled phases
+### M1 — Retro lifecycle (1 day) ✅ v0.3
+- [x] Schema, `retros.create` (slug, scrypt hash, default agenda calculation), `getBySlug`, `getManyBySlugs`
+- [x] `/new` form with validation; `/` home with "recent retros" from `localStorage`; `/r/[slug]` header + "Copy link"
+- [x] Unit tests for agenda scaling and redistribution across disabled phases
+- [x] Component tests (form, recent list, link field, retro page) and E2E: create → open as a second participant → recent list → paste link; validation; not found
 - **Done when:** I can create a retro, open it from its link, and find it again under "recent retros" in the same browser.
 
 ### M2 — Phases & timer (1 day)

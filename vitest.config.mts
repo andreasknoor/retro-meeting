@@ -28,8 +28,10 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8",
-      include: ["convex/**/*.ts", "lib/**/*.ts"],
-      exclude: ["convex/_generated/**", "**/*.test.ts", "convex/schema.ts", "lib/utils.ts"],
+      // components/ is reported for information; only convex/ and lib/ are gated.
+      include: ["convex/**/*.ts", "lib/**/*.ts", "components/retro/**/*.tsx"],
+      exclude: ["convex/_generated/**", "**/*.test.ts",
+        "**/*.test.tsx", "convex/schema.ts", "lib/utils.ts"],
       reporter: ["text", "json-summary", "html"],
       // Release gate from IMPLEMENTATION_PLAN.md §11: backend ≥ 90 %, lib ≥ 80 %.
       thresholds: {

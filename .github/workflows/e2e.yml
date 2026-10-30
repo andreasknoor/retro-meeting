@@ -1,18 +1,21 @@
 name: E2E
 
-# Vercel reports each deployment to GitHub; test it once it is live.
-# Only production deployments for now: previews are behind Vercel Authentication.
+# Vercel reports each deployment as a commit status ("Vercel"). Once a deployment of main
+# succeeds, production is live; test it there. Previews are behind Vercel Authentication.
 on:
-  deployment_status:
+  status:
 
 jobs:
   e2e:
-    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production'
+    if: >-
+      github.event.context == 'Vercel' &&
+      github.event.state == 'success' &&
+      contains(github.event.branches.*.name, 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.deployment.sha }}
+          ref: ${{ github.event.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -21,7 +24,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
         env:
-          E2E_BASE_URL: ${{ github.event.deployment_status.environment_url }}
+          E2E_BASE_URL: https://retro-meeting.vercel.app
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
