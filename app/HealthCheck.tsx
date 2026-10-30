@@ -9,9 +9,5 @@ export function HealthCheck() {
   if (ping === undefined) {
     return <p className="text-muted-foreground">Connecting to backend…</p>;
   }
-  return (
-    <p className="text-emerald-700">
-      ✓ Backend connected · server time {new Date(ping.serverTime).toLocaleTimeString("en-GB")}
-    </p>
-  );
+  return <p className="text-emerald-700">✓ Backend connected</p>;
 }

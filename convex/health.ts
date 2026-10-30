@@ -1,7 +1,9 @@
 import { query } from "./_generated/server";
+import { v } from "convex/values";
 
-// Smoke test for the M0 deployment: proves the client can reach Convex.
+// Smoke test for deployments: proves the client can reach Convex.
 export const ping = query({
   args: {},
-  handler: async () => ({ ok: true, serverTime: Date.now() }),
+  returns: v.object({ ok: v.boolean() }),
+  handler: async () => ({ ok: true }),
 });

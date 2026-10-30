@@ -199,7 +199,7 @@ Next.js on Vercel (Hobby)
 | Rendering | The retro page is a client component tree under a `ConvexClientProvider`. The home and create pages may use server rendering via `fetchQuery`. |
 | Identity | `participantId` = `crypto.randomUUID()` stored in `localStorage` and sent as an argument with every mutation. The server treats it as a pseudonymous key, not as authentication. |
 | Admin auth | The password is hashed with Node `crypto.scrypt` in a Convex action (random salt per retro). Login creates a random 32-byte token; only its SHA-256 hash is stored in `adminSessions`. The token lives in an HTTP-only cookie and is passed to admin mutations by a Next.js route handler / server action. It is never readable by JavaScript in the browser. |
-| Timer | The server stores timestamps only. Clients compute the countdown, using the server-time offset from the `serverNow` query. |
+| Timer | The server stores timestamps only. Clients compute the countdown, using the server-time offset from the `serverNow` action (queries must not read the wall clock). |
 | Optimistic UI | Votes, pulse answers and new ideas use Convex optimistic updates so they feel instant. |
 | Validation | Every mutation validates its arguments with Convex `v` validators and enforces length limits, enum values and phase rules on the server. |
 | Region | **US (aws-us-east-1)**. Decided in M0: EU carries a 30 % surcharge and is not fully covered by the free plan; acceptable for private use. |
@@ -278,7 +278,7 @@ loginAttempts: defineTable({
 | | `updateAgenda` | mutation | Admin token required |
 | | `remove` | mutation | Admin token; cascades in batches |
 | `phase.ts` | `startNext`, `extend`, `endEarly`, `reset` | mutation | Open to everyone; each validates the state transition |
-| | `serverNow` | query | Clock offset for the timer |
+| | `serverNow` | action | Clock offset for the timer (queries must not read the wall clock) |
 | `pulse.ts` | `summary` | query | Average, counts, the caller's own score |
 | | `answer` | mutation | Upsert per participant, score 1..5 |
 | `ideas.ts` | `listByRetro` | query | Sorting depends on state; returns `isMine` / `votedByMe` |
@@ -332,6 +332,14 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] Add a CI workflow (lint, typecheck, unit tests) for pull requests
 - **Done when:** a "hello" page reading from Convex is live on `*.vercel.app`.
 
+### M0.5 — Test infrastructure (0.5 day) ✅ v0.2
+- [x] Vitest with two projects: `convex` (edge-runtime + `convex-test`) and `web` (jsdom + Testing Library)
+- [x] Coverage gate (v8): `convex/**` ≥ 90 % lines/functions/statements (85 % branches), `lib/**` ≥ 80 % (75 % branches); CI fails below it, and the summary is shown in the GitHub run
+- [x] Playwright (desktop + mobile) with a smoke test; locally it starts `npm run dev`
+- [x] E2E workflow runs against every successful **production** deployment (previews are behind Vercel Authentication; enabling them needs a protection-bypass secret → later)
+- [x] Convex AI guidelines installed (`convex/_generated/ai/guidelines.md`); the health query no longer reads the wall clock (guideline: no `Date.now()` in queries)
+- **Rule from here on:** every milestone ships with its tests; new Convex functions without tests fail the coverage gate.
+
 ### M1 — Retro lifecycle (1 day)
 - [ ] Schema, `retros.create` (slug, scrypt hash, default agenda calculation), `getBySlug`, `getManyBySlugs`
 - [ ] `/new` form with validation; `/` home with "recent retros" from `localStorage`; `/r/[slug]` header + "Copy link"
@@ -340,7 +348,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 
 ### M2 — Phases & timer (1 day)
 - [ ] Phase state machine (`startNext`, `extend`, `endEarly`, `reset`) with transition tests
-- [ ] `serverNow` + `useServerClock` hook; `Timer` with overtime display
+- [ ] `serverNow` action + `useServerClock` hook; `Timer` with overtime display
 - [ ] `PhaseBar` stepper and `Agenda` card with the current-phase highlight
 - **Done when:** two browsers show the same countdown (±1 s), and either one can advance the phase.
 
@@ -380,7 +388,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [ ] Short README (local dev, deploy, env vars)
 - **Done when:** the acceptance checklist in §10 passes on production.
 
-**Total: about 9 working days.**
+**Total: about 9.5 working days.**
 
 ---
 
