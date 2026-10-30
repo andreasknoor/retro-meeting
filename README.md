@@ -4,6 +4,8 @@ Real-time team retrospectives (Keep / Fix / Try). Participants join via link, no
 
 **Live:** https://retro-meeting.vercel.app · **Plan:** [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) · **Prototype:** [mockups/prototype.html](mockups/prototype.html)
 
+![A retro in the Discuss & Act phase: agenda, pulse check, ranked idea board and action items](docs/screenshot.png)
+
 ## Features
 
 - Create a retro (name, goal, date, length, facilitator, phases, admin password); share it by link
