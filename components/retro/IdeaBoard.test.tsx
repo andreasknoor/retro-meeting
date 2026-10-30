@@ -13,7 +13,9 @@ vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }))
 
 const add = vi.fn();
 const remove = vi.fn();
+const toggle = vi.fn();
 let optimisticAdd: (store: unknown, args: Record<string, string>) => void;
+let optimisticVote: (store: unknown, args: Record<string, string>) => void;
 
 const retro = {
   slug: "k7f3q9xa",
@@ -22,11 +24,21 @@ const retro = {
 } as Retro;
 
 const idea = (id: string, column: Idea["column"], text: string, extra: Partial<Idea> = {}): Idea =>
-  ({ id, column, text, initials: null, voteCount: 0, createdAt: Number(id.replace(/\D/g, "")), isMine: false, ...extra }) as Idea;
+  ({
+    id,
+    column,
+    text,
+    initials: null,
+    voteCount: 0,
+    createdAt: Number(id.replace(/\D/g, "")),
+    isMine: false,
+    votedByMe: false,
+    ...extra,
+  }) as Idea;
 
 const IDEAS = [
   idea("i1", "keep", "Short stand-ups", { initials: "AK", voteCount: 1 }),
-  idea("i2", "keep", "Pairing", { voteCount: 4 }),
+  idea("i2", "keep", "Pairing", { voteCount: 4, votedByMe: true }),
   idea("i3", "fix", "Flaky tests", { isMine: true }),
 ];
 
@@ -34,15 +46,24 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   vi.mocked(useQuery).mockReturnValue(IDEAS);
-  vi.mocked(useMutation).mockImplementation(((ref: never) =>
-    getFunctionName(ref) === "ideas:add"
-      ? {
-          withOptimisticUpdate: (fn: typeof optimisticAdd) => {
-            optimisticAdd = fn;
-            return add;
-          },
-        }
-      : Object.assign(remove, { withOptimisticUpdate: () => remove })) as never);
+  vi.mocked(useMutation).mockImplementation(((ref: never) => {
+    const name = getFunctionName(ref);
+    if (name === "ideas:add")
+      return {
+        withOptimisticUpdate: (fn: typeof optimisticAdd) => {
+          optimisticAdd = fn;
+          return add;
+        },
+      };
+    if (name === "votes:toggle")
+      return {
+        withOptimisticUpdate: (fn: typeof optimisticVote) => {
+          optimisticVote = fn;
+          return toggle;
+        },
+      };
+    return remove;
+  }) as never);
 });
 
 const column = (name: string) => screen.getByRole("region", { name });
@@ -163,6 +184,67 @@ describe("IdeaBoard", () => {
     render(<IdeaBoard retro={retro} participantId="me-000000" />);
     expect(screen.queryByText("No ideas yet")).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Keep (0)" })).toBeInTheDocument();
+  });
+});
+
+describe("voting", () => {
+  const voteButton = (col: string, n: number) => within(column(col)).getAllByRole("button", { name: /Vote/ })[n];
+
+  test("before the Vote phase the buttons are disabled and counts hidden", () => {
+    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    expect(voteButton("Keep", 0)).toBeDisabled();
+    expect(screen.queryByText(/\d votes?$/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Votes left")).toHaveClass("opacity-50");
+  });
+
+  test("during the Vote phase: vote, see counts and votes left", async () => {
+    const user = userEvent.setup();
+    toggle.mockResolvedValue("cast");
+    render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" />);
+    expect(screen.getByLabelText("Votes left")).toHaveTextContent("2 of 3 votes left");
+    expect(within(column("Keep")).getByText("4 votes")).toBeInTheDocument();
+    expect(within(column("Keep")).getByText("1 vote")).toBeInTheDocument();
+    expect(voteButton("Keep", 0)).toHaveTextContent("✓ Voted");
+    expect(voteButton("Keep", 0)).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(voteButton("Fix", 0));
+    expect(toggle).toHaveBeenCalledWith({ ideaId: "i3", participantId: "me-000000" });
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  test("tells when a vote was moved and reports errors", async () => {
+    const user = userEvent.setup();
+    toggle.mockResolvedValueOnce("moved").mockRejectedValueOnce(new ConvexError("Voting is only possible during the Vote phase."));
+    toggle.mockRejectedValueOnce(new Error("network"));
+    render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" />);
+    await user.click(voteButton("Keep", 1));
+    expect(toast).toHaveBeenCalledWith("Vote moved");
+    await user.click(voteButton("Keep", 1));
+    expect(toast.error).toHaveBeenCalledWith("Voting is only possible during the Vote phase.");
+    await user.click(voteButton("Keep", 1));
+    expect(toast.error).toHaveBeenCalledWith("Could not vote.");
+  });
+
+  test("the optimistic update moves the vote", () => {
+    render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" />);
+    const store = { getQuery: vi.fn(() => IDEAS), setQuery: vi.fn() };
+    optimisticVote(store, { ideaId: "i1", participantId: "me-000000" });
+    const next = store.setQuery.mock.calls[0][2] as Idea[];
+    expect(next.map((i) => [i.id, i.voteCount, i.votedByMe])).toEqual([
+      ["i1", 2, true],
+      ["i2", 3, false],
+      ["i3", 0, false],
+    ]);
+    store.getQuery.mockReturnValue(undefined as never);
+    optimisticVote(store, { ideaId: "i1", participantId: "me-000000" });
+    expect(store.setQuery).toHaveBeenCalledTimes(1);
+  });
+
+  test("no voting UI when the Vote phase is disabled", () => {
+    render(<IdeaBoard retro={{ ...retro, state: "discuss", enabledPhases: ["brainstorm", "discuss"] }} participantId="me-000000" />);
+    expect(screen.queryByRole("button", { name: /Vote/ })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Votes left")).not.toBeInTheDocument();
+    expect(texts("Keep")).toEqual(["Short stand-ups", "Pairing"]);
   });
 });
 

@@ -367,10 +367,10 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] Mobile column switcher
 - **Done when:** ideas from 3+ browsers appear live in creation order, and only the author or an admin sees Delete.
 
-### M5 — Voting (1 day)
-- [ ] `votes.toggle` (cast, move, retract) with a transactional `voteCount`
-- [ ] Phase-dependent sorting, the "Top in …" badge, the votes-left indicator
-- [ ] Concurrency test: 20 parallel votes produce correct counts
+### M5 — Voting (1 day) ✅ v0.7
+- [x] `votes.toggle` (cast, move, retract) with a transactional `voteCount`
+- [x] Phase-dependent sorting, the "Top in …" badge, the votes-left indicator
+- [x] Concurrency test: 20 parallel votes produce correct counts
 - **Done when:** each person has at most one vote per column, can change it, and the columns re-sort live.
 
 ### M6 — Action items (1 day)

@@ -57,4 +57,13 @@ export default defineSchema({
     authorId: v.string(), // participantId; never sent to clients
     voteCount: v.number(), // denormalized, kept in sync by votes.toggle
   }).index("by_retroId", ["retroId"]),
+
+  votes: defineTable({
+    retroId: v.id("retros"),
+    ideaId: v.id("ideas"),
+    column: columnValidator,
+    participantId: v.string(),
+  })
+    .index("by_retroId_and_participantId_and_column", ["retroId", "participantId", "column"])
+    .index("by_ideaId", ["ideaId"]),
 });

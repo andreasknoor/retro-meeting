@@ -4,16 +4,16 @@ import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { type Column, COLUMN_META, COLUMNS, normalizeInitials } from "@/convex/lib/columns";
 import { hasReached } from "@/convex/lib/phases";
-import { loadInitials, saveInitials, sortIdeas, topIdea } from "@/lib/ideas";
+import { applyVoteToggle, loadInitials, saveInitials, sortIdeas, topIdea } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
 import { IdeaCard } from "./IdeaCard";
 import { IdeaComposer } from "./IdeaComposer";
-import type { Retro } from "./types";
+import type { Idea, Retro } from "./types";
 
 export function IdeaBoard({ retro, participantId }: { retro: Retro; participantId: string }) {
   const { slug, state, enabledPhases } = retro;
@@ -31,10 +31,15 @@ export function IdeaBoard({ retro, participantId }: { retro: Retro; participantI
         voteCount: 0,
         createdAt: Number.MAX_SAFE_INTEGER, // sorts last until the server copy arrives
         isMine: true,
+        votedByMe: false,
       },
     ]);
   });
   const removeIdea = useMutation(api.ideas.remove);
+  const toggleVote = useMutation(api.votes.toggle).withOptimisticUpdate((store, args) => {
+    const current = store.getQuery(api.ideas.list, { slug, participantId });
+    if (current) store.setQuery(api.ideas.list, { slug, participantId }, applyVoteToggle(current, args.ideaId));
+  });
 
   const [initials, setInitials] = useState(loadInitials);
   const [mobileColumn, setMobileColumn] = useState<Column>("keep");
@@ -42,6 +47,8 @@ export function IdeaBoard({ retro, participantId }: { retro: Retro; participantI
   const votingOn = enabledPhases.includes("vote");
   const byVotes = hasReached(state, enabledPhases, "vote");
   const composerMuted = state !== "not_started" && state !== "brainstorm";
+  const votingOpen = state === "vote";
+  const votedColumns = new Set(ideas?.filter((i) => i.votedByMe).map((i) => i.column));
 
   async function add(column: Column, text: string): Promise<boolean> {
     saveInitials(initials);
@@ -63,11 +70,35 @@ export function IdeaBoard({ retro, participantId }: { retro: Retro; participantI
     }
   }
 
+  async function vote(idea: Idea) {
+    try {
+      const result = await toggleVote({ ideaId: idea.id, participantId });
+      if (result === "moved") toast("Vote moved");
+    } catch (err) {
+      toast.error(err instanceof ConvexError ? String(err.data) : "Could not vote.");
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-xl">Idea board</CardTitle>
         <CardDescription>{boardHint(state, votingOn, byVotes)}</CardDescription>
+        {votingOn && (
+          <CardAction
+            className={cn("flex items-center gap-1.5 text-sm font-bold text-primary", !votingOpen && "opacity-50")}
+            aria-label="Votes left"
+          >
+            {COLUMNS.map((column) => (
+              <span
+                key={column}
+                title={COLUMN_META[column].label}
+                className={cn("size-3 rounded-full border-2 border-primary", votedColumns.has(column) && "bg-primary")}
+              />
+            ))}
+            <span className="ml-1">{3 - votedColumns.size} of 3 votes left</span>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent>
         <div className="mb-4 flex gap-2 md:hidden" role="tablist" aria-label="Columns">
@@ -118,7 +149,29 @@ export function IdeaBoard({ retro, participantId }: { retro: Retro; participantI
                       idea={idea}
                       topLabel={idea === top ? label : null}
                       onDelete={idea.isMine ? () => void remove(idea.id) : undefined}
-                    />
+                    >
+                      {votingOn && (
+                        <button
+                          type="button"
+                          disabled={!votingOpen}
+                          title={votingOpen ? undefined : "Voting opens in the Vote phase"}
+                          aria-pressed={idea.votedByMe}
+                          onClick={() => void vote(idea)}
+                          className={cn(
+                            "rounded-full border-[1.5px] px-3 py-0.5 text-sm font-semibold text-muted-foreground transition-colors",
+                            "enabled:hover:border-primary enabled:hover:text-primary disabled:cursor-not-allowed disabled:opacity-50",
+                            idea.votedByMe && "border-primary bg-primary text-primary-foreground enabled:hover:text-primary-foreground",
+                          )}
+                        >
+                          {idea.votedByMe ? "✓ Voted" : "+ Vote"}
+                        </button>
+                      )}
+                      {votingOn && byVotes && (
+                        <span className="text-sm font-bold">
+                          {idea.voteCount} {idea.voteCount === 1 ? "vote" : "votes"}
+                        </span>
+                      )}
+                    </IdeaCard>
                   ))}
                 </ul>
                 {ideas !== undefined && sorted.length === 0 && (

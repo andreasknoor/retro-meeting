@@ -28,3 +28,19 @@ export function saveInitials(initials: string): void {
     // Not remembered; harmless.
   }
 }
+
+type Votable = { id: string; column: string; voteCount: number; votedByMe: boolean };
+
+/** Mirrors votes.toggle for optimistic updates: cast, move within the column, or take back. */
+export function applyVoteToggle<T extends Votable>(ideas: readonly T[], ideaId: string): T[] {
+  const target = ideas.find((i) => i.id === ideaId);
+  if (!target) return [...ideas];
+  const retract = target.votedByMe;
+  return ideas.map((i) => {
+    if (i.id === ideaId) return { ...i, voteCount: i.voteCount + (retract ? -1 : 1), votedByMe: !retract };
+    if (!retract && i.column === target.column && i.votedByMe) {
+      return { ...i, voteCount: Math.max(0, i.voteCount - 1), votedByMe: false };
+    }
+    return i;
+  });
+}

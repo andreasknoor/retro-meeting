@@ -17,6 +17,7 @@ const ideaValidator = v.object({
   voteCount: v.number(),
   createdAt: v.number(),
   isMine: v.boolean(),
+  votedByMe: v.boolean(),
 });
 
 /** All ideas of a retro in creation order; the author is reduced to `isMine` (§6 privacy rules). */
@@ -30,6 +31,13 @@ export const list = query({
       .query("ideas")
       .withIndex("by_retroId", (q) => q.eq("retroId", retro._id))
       .take(MAX_IDEAS);
+    const myVotes = await ctx.db
+      .query("votes")
+      .withIndex("by_retroId_and_participantId_and_column", (q) =>
+        q.eq("retroId", retro._id).eq("participantId", participantId),
+      )
+      .take(3);
+    const votedIds = new Set(myVotes.map((vote) => vote.ideaId));
     return ideas.map((idea) => ({
       id: idea._id,
       column: idea.column,
@@ -38,6 +46,7 @@ export const list = query({
       voteCount: idea.voteCount,
       createdAt: idea._creationTime,
       isMine: idea.authorId === participantId,
+      votedByMe: votedIds.has(idea._id),
     }));
   },
 });
@@ -94,5 +103,9 @@ export const remove = mutation({
 
 /** Deletes an idea with everything that hangs off it. */
 export async function deleteIdea(ctx: MutationCtx, ideaId: Id<"ideas">): Promise<void> {
+  // One vote per participant per idea, so this is bounded by the number of participants.
+  for await (const vote of ctx.db.query("votes").withIndex("by_ideaId", (q) => q.eq("ideaId", ideaId))) {
+    await ctx.db.delete("votes", vote._id);
+  }
   await ctx.db.delete("ideas", ideaId);
 }

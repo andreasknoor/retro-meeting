@@ -21,6 +21,7 @@ import type * as phase from "../phase.js";
 import type * as pulse from "../pulse.js";
 import type * as retros from "../retros.js";
 import type * as retrosNode from "../retrosNode.js";
+import type * as votes from "../votes.js";
 
 import type {
   ApiFromModules,
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   pulse: typeof pulse;
   retros: typeof retros;
   retrosNode: typeof retrosNode;
+  votes: typeof votes;
 }>;
 
 /**
