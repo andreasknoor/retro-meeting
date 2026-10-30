@@ -417,21 +417,23 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 
 ---
 
-## 10. Acceptance Checklist (release gate)
+## 10. Acceptance Checklist (release gate) — ✅ passed on production with v0.15
 
-- [ ] A retro can be created with all master data and opened via its link without logging in
-- [ ] There is no public list of retros; retros created or opened in this browser appear under "recent retros" on `/`
-- [ ] Disabled phases do not appear in the stepper, the agenda or the UI
-- [ ] The phase timer is in sync across clients (±1 s); `+1 min`, `End early` and `Reset` work for everyone
-- [ ] Pulse check: one answer per browser, changeable, anonymous, with a correct average
-- [ ] Ideas appear live for everyone in creation order; initials are optional
-- [ ] Voting only during the Vote phase; max. one vote per column per person; changeable; columns sort by votes
-- [ ] `Make action` on ideas works only in the Discuss phase; free-text actions are possible in every phase; owner and due date are required
-- [ ] The admin password is required for agenda edits and deletion; brute-force lockout works
-- [ ] No `participantId`, `authorId` or password hash is ever returned to the client (verified in the network tab)
-- [ ] The page works at 375 px width and at 1440 px
+Each item is covered by automated tests; the E2E suite runs against https://retro-meeting.vercel.app after every deployment.
 
----
+- [x] A retro can be created with all master data and opened via its link without logging in — `e2e/retro-lifecycle.spec.ts`
+- [x] There is no public list of retros; retros created or opened in this browser appear under "recent retros" on `/` — `e2e/retro-lifecycle.spec.ts`
+- [x] Disabled phases do not appear in the stepper, the agenda or the UI — `e2e/phases.spec.ts`, `e2e/pulse.spec.ts`
+- [x] The phase timer is in sync across clients (±1 s); `Back`, `+1 min`, `End early` and `Reset` work; by default only the admin controls phases — `e2e/phases.spec.ts`, `convex/phase.test.ts`
+- [x] Pulse check: one answer per browser, changeable, anonymous, with a correct average — `e2e/pulse.spec.ts`
+- [x] Ideas appear live for everyone in creation order; initials are optional — `e2e/ideas.spec.ts`
+- [x] Voting only during the Vote phase; max. one vote per column per person; changeable; columns sort by votes — `e2e/voting.spec.ts`, `convex/votes.test.ts`
+- [x] `Make action` on ideas works only in the Discuss phase; free-text actions are possible in every phase; owner and due date are required — `e2e/actions.spec.ts`
+- [x] The admin password is required for agenda edits and deletion; brute-force lockout works — `e2e/admin.spec.ts`, `convex/admin.test.ts`
+- [x] No `participantId`, `authorId` or password hash is ever returned to the client — `e2e/privacy.spec.ts` (inspects all WebSocket frames), `convex/*.test.ts`
+- [x] The page works at 375 px width and at 1440 px — every E2E test runs on desktop and on a Pixel 7 viewport
+- [x] A complete retro with three participants works end to end — `e2e/full-retro.spec.ts`
+- [x] No serious WCAG 2.1 AA violations — `e2e/accessibility.spec.ts`
 
 ## 11. Testing Strategy
 
