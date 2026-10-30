@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** Draft for review · **Date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30 (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -405,13 +405,14 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] Tests: state helper, backend (disabled phases, finished, votes kept and voting reopened), component, E2E
 - [x] v0.13: going back before Vote deletes all votes after an inline warning (only shown when votes exist); `retros.getBySlug` returns `hasVotes`
 
-### M8 — Polish, QA & launch (1.5 days)
+### M8 — Polish, QA & launch (1.5 days) ✅ v0.14–v0.15, launched as v1.0
 - [x] Responsive pass, keyboard navigation, focus states, ARIA labels on vote and score buttons; automated axe-core WCAG 2.1 AA check in E2E (fixed: header and stepper contrast, focusable scroll region)
 - [x] Empty, loading and error states (unknown slug → not-found card, unknown URL → 404 page; Convex disconnected → banner)
 - [x] Playwright E2E: a full retro with 3 browser contexts running through all phases
 - [x] Load test with 30 simulated participants (`npm run loadtest`, dev deployment). Found write contention: `ideas.add` read all ideas for the cap and votes wrote a shared counter → OCC failures and dropped connections. Fixed in v0.14 (per-participant cap of 30 ideas; vote counts computed from `votes`). Result: p95 add idea 373 ms, vote 473 ms, propagation to all ~250 ms, 0 failures; ~2,000 Convex function calls per 30-person retro
 - [x] README (local dev, tests, releases, env vars, security notes)
-- **Done when:** the acceptance checklist in §10 passes on production.
+- [x] Old E2E test retros from before v0.9 removed from production (60 retros with all their data, via the admin delete flow; owner-approved)
+- **Done when:** the acceptance checklist in §10 passes on production. ✅
 
 **Total: about 9.5 working days.**
 
