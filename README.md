@@ -2,7 +2,7 @@
 
 Real-time team retrospectives (Keep / Fix / Try). Participants join via link, no sign-up.
 
-**Live:** https://retro-meeting.vercel.app · **Plan:** [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) · **Prototype:** [mockups/prototype.html](mockups/prototype.html)
+**Live:** https://retro-meeting.andreasknoor.com · **Plan:** [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) · **Prototype:** [mockups/prototype.html](mockups/prototype.html)
 
 ![A retro in the Discuss & Act phase: agenda, pulse check, ranked idea board and action items](docs/screenshot.png)
 
@@ -39,7 +39,7 @@ If `npx`-spawned installs fail with `EALLOWSCRIPTS`, your user `.npmrc` sets `al
 | `npm run test:e2e` | Playwright on desktop + mobile against a local production build (port 3100) and the Convex dev deployment |
 | `npm run loadtest` | One complete retro with 30 simulated participants against the **dev** deployment |
 
-E2E tests delete every retro they create. CI runs lint, typecheck and coverage on every push; after each production deployment the E2E suite runs against https://retro-meeting.vercel.app.
+E2E tests delete every retro they create. CI runs lint, typecheck and coverage on every push; after each production deployment the E2E suite runs against https://retro-meeting.andreasknoor.com.
 
 ## Releases
 

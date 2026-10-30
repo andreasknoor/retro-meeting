@@ -425,7 +425,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 
 ## 10. Acceptance Checklist (release gate) — ✅ passed on production with v0.15
 
-Each item is covered by automated tests; the E2E suite runs against https://retro-meeting.vercel.app after every deployment.
+Each item is covered by automated tests; the E2E suite runs against https://retro-meeting.andreasknoor.com after every deployment.
 
 - [x] A retro can be created with all master data and opened via its link without logging in — `e2e/retro-lifecycle.spec.ts`
 - [x] There is no public list of retros; retros created or opened in this browser appear under "recent retros" on `/` — `e2e/retro-lifecycle.spec.ts`

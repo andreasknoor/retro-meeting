@@ -27,7 +27,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
         env:
-          E2E_BASE_URL: https://retro-meeting.vercel.app
+          E2E_BASE_URL: https://retro-meeting.andreasknoor.com
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

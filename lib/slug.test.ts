@@ -5,9 +5,9 @@ describe("parseRetroLink", () => {
   test.each([
     ["k7f3q9xa", "k7f3q9xa"],
     ["  K7F3Q9XA ", "k7f3q9xa"],
-    ["https://retro-meeting.vercel.app/r/k7f3q9xa", "k7f3q9xa"],
-    ["https://retro-meeting.vercel.app/r/k7f3q9xa/admin", "k7f3q9xa"],
-    ["https://retro-meeting.vercel.app/r/k7f3q9xa?x=1", "k7f3q9xa"],
+    ["https://retro-meeting.andreasknoor.com/r/k7f3q9xa", "k7f3q9xa"],
+    ["https://retro-meeting.andreasknoor.com/r/k7f3q9xa/admin", "k7f3q9xa"],
+    ["https://retro-meeting.andreasknoor.com/r/k7f3q9xa?x=1", "k7f3q9xa"],
     ["/r/k7f3q9xa", "k7f3q9xa"],
   ])("reads %s", (input, slug) => {
     expect(parseRetroLink(input)).toBe(slug);
