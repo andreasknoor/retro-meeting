@@ -361,10 +361,10 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] Pulse card with result bars and the "You answered" badge; optimistic update
 - **Done when:** the average and distribution update live across browsers, and changing an answer does not double-count.
 
-### M4 — Idea board (1.5 days)
-- [ ] `ideas.add/remove/listByRetro` with `isMine`; initials remembered in `localStorage`
-- [ ] Three columns, Enter to submit, counts, and the empty state per column
-- [ ] Mobile column switcher
+### M4 — Idea board (1.5 days) ✅ v0.6
+- [x] `ideas.add/remove/listByRetro` with `isMine`; initials remembered in `localStorage`
+- [x] Three columns, Enter to submit, counts, and the empty state per column
+- [x] Mobile column switcher
 - **Done when:** ideas from 3+ browsers appear live in creation order, and only the author or an admin sees Delete.
 
 ### M5 — Voting (1 day)

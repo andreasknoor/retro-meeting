@@ -10,7 +10,9 @@
 
 import type * as clock from "../clock.js";
 import type * as health from "../health.js";
+import type * as ideas from "../ideas.js";
 import type * as lib_agenda from "../lib/agenda.js";
+import type * as lib_columns from "../lib/columns.js";
 import type * as lib_phases from "../lib/phases.js";
 import type * as lib_pulse from "../lib/pulse.js";
 import type * as lib_retroAccess from "../lib/retroAccess.js";
@@ -29,7 +31,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   clock: typeof clock;
   health: typeof health;
+  ideas: typeof ideas;
   "lib/agenda": typeof lib_agenda;
+  "lib/columns": typeof lib_columns;
   "lib/phases": typeof lib_phases;
   "lib/pulse": typeof lib_pulse;
   "lib/retroAccess": typeof lib_retroAccess;

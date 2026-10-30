@@ -17,6 +17,8 @@ export const stateValidator = v.union(
   v.literal("finished"),
 );
 
+export const columnValidator = v.union(v.literal("keep"), v.literal("fix"), v.literal("try"));
+
 export const agendaValidator = v.object({
   intro: v.number(),
   brainstorm: v.number(),
@@ -46,4 +48,13 @@ export default defineSchema({
     participantId: v.string(),
     score: v.number(), // 1..5
   }).index("by_retroId_and_participantId", ["retroId", "participantId"]),
+
+  ideas: defineTable({
+    retroId: v.id("retros"),
+    column: columnValidator,
+    text: v.string(),
+    initials: v.optional(v.string()),
+    authorId: v.string(), // participantId; never sent to clients
+    voteCount: v.number(), // denormalized, kept in sync by votes.toggle
+  }).index("by_retroId", ["retroId"]),
 });

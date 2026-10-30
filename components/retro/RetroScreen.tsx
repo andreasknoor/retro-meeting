@@ -11,6 +11,7 @@ import { PHASE_LABELS } from "@/convex/lib/agenda";
 import { useParticipantId } from "@/lib/participant";
 import { forgetRetro, rememberRetro } from "@/lib/recentRetros";
 import { AgendaCard } from "./AgendaCard";
+import { IdeaBoard } from "./IdeaBoard";
 import { PhaseBar } from "./PhaseBar";
 import { PulseCard } from "./PulseCard";
 import { RetroHeader } from "./RetroHeader";
@@ -41,6 +42,7 @@ export function RetroScreen({ slug }: { slug: string }) {
             <PulseCard retro={retro} participantId={participantId} />
           )}
         </div>
+        {participantId && <IdeaBoard retro={retro} participantId={participantId} />}
       </main>
     </>
   );
