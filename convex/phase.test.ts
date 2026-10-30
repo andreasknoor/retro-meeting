@@ -89,6 +89,34 @@ describe("phase.back", () => {
     expect((await get()).state).toBe("intro");
   });
 
+  test("going back before Vote deletes all votes, but only when confirmed", async () => {
+    const { t, slug, get } = await setup();
+    const add = (text: string) => t.mutation(api.ideas.add, { slug, participantId: "alice-0000", column: "keep", text, initials: "" });
+    const k1 = await add("K1");
+    const k2 = await add("K2");
+    for (const from of ["not_started", "intro", "brainstorm"] as const) await t.mutation(api.phase.startNext, { slug, from });
+    await t.mutation(api.votes.toggle, { ideaId: k1, participantId: "alice-0000" });
+    await t.mutation(api.votes.toggle, { ideaId: k2, participantId: "bob-000000" });
+    expect((await get()).hasVotes).toBe(true);
+
+    await expect(t.mutation(api.phase.back, { slug, from: "vote" })).rejects.toThrow("Going back deletes all votes.");
+    expect((await get()).state).toBe("vote");
+
+    await t.mutation(api.phase.back, { slug, from: "vote", discardVotes: true });
+    expect(await get()).toMatchObject({ state: "brainstorm", hasVotes: false });
+    expect((await t.query(api.ideas.list, { slug, participantId: "alice-0000" })).map((i) => [i.voteCount, i.votedByMe])).toEqual([
+      [0, false],
+      [0, false],
+    ]);
+  });
+
+  test("going back before Vote without any votes needs no confirmation", async () => {
+    const { t, slug, get } = await setup();
+    for (const from of ["not_started", "intro", "brainstorm"] as const) await t.mutation(api.phase.startNext, { slug, from });
+    await t.mutation(api.phase.back, { slug, from: "vote" });
+    expect((await get()).state).toBe("brainstorm");
+  });
+
   test("keeps votes and reopens voting when going back to Vote", async () => {
     const { t, slug, get } = await setup();
     const ideaId = await t.mutation(api.ideas.add, { slug, participantId: "alice-0000", column: "keep", text: "K", initials: "" });

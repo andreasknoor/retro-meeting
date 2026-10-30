@@ -8,7 +8,7 @@ import { type PhaseCommand, switchPhase } from "@/app/actions/retro";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { orderPhases, PHASE_LABELS } from "@/convex/lib/agenda";
-import { nextState, phaseIndex, previousPhase } from "@/convex/lib/phases";
+import { backDiscardsVotes, nextState, phaseIndex, previousPhase } from "@/convex/lib/phases";
 import { formatClock, remainingSec } from "@/lib/timer";
 import { useServerNow } from "@/lib/useServerClock";
 import { cn } from "@/lib/utils";
@@ -23,13 +23,20 @@ type Props = {
 
 export function PhaseBar({ retro, isAdmin, onAdminLogin }: Props) {
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmBack, setConfirmBack] = useState(false);
 
   const { slug, state } = retro;
   const canControl = !retro.adminControlsPhases || isAdmin;
 
-  async function run(command: PhaseCommand) {
-    const result = await switchPhase(slug, command, state);
+  async function run(command: PhaseCommand, options?: { discardVotes?: boolean }) {
+    const result = await switchPhase(slug, command, state, options);
     if (!result.ok) toast.error(result.error);
+  }
+
+  function back() {
+    // Going back before the Vote phase deletes the votes: warn only if there are any.
+    if (backDiscardsVotes(state, retro.enabledPhases) && retro.hasVotes) setConfirmBack(true);
+    else void run("back");
   }
 
   const phases = orderPhases(retro.enabledPhases);
@@ -73,6 +80,27 @@ export function PhaseBar({ retro, isAdmin, onAdminLogin }: Props) {
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           {!canControl ? (
             <PhaseLock slug={slug} onAdminLogin={onAdminLogin} />
+          ) : confirmBack && previous ? (
+            <span
+              role="alertdialog"
+              aria-label="Confirm going back"
+              className="flex flex-wrap items-center gap-2 rounded-2xl bg-amber-50 py-1 pr-1 pl-3 text-sm font-semibold text-amber-900"
+            >
+              ⚠ Going back to {PHASE_LABELS[previous]} deletes all votes.
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => {
+                  setConfirmBack(false);
+                  void run("back", { discardVotes: true });
+                }}
+              >
+                Delete votes &amp; go back
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmBack(false)}>
+                Cancel
+              </Button>
+            </span>
           ) : confirmReset ? (
             <span className="flex items-center gap-2 rounded-full bg-destructive/10 py-1 pr-1 pl-3 text-sm font-semibold text-destructive">
               Reset phases? Data is kept.
@@ -97,7 +125,7 @@ export function PhaseBar({ retro, isAdmin, onAdminLogin }: Props) {
                 disabled={previous === null}
                 title={previous ? `Back to ${PHASE_LABELS[previous]}` : undefined}
                 aria-label={previous ? `Back to ${PHASE_LABELS[previous]}` : "Back"}
-                onClick={() => void run("back")}
+                onClick={back}
               >
                 ← Back
               </Button>

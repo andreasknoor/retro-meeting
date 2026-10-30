@@ -22,6 +22,12 @@ export function previousPhase(state: RetroState, enabled: readonly Phase[]): Pha
   return orderPhases(enabled)[phaseIndex(state, enabled) - 1] ?? null;
 }
 
+/** Going back from `state` to `previousPhase` crosses the Vote phase backwards, which discards all votes. */
+export function backDiscardsVotes(state: RetroState, enabled: readonly Phase[]): boolean {
+  const previous = previousPhase(state, enabled);
+  return previous !== null && hasReached(state, enabled, "vote") && !hasReached(previous, enabled, "vote");
+}
+
 /** True once `phase` is the current phase or lies behind (false if the phase is disabled). */
 export function hasReached(state: RetroState, enabled: readonly Phase[], phase: Phase): boolean {
   return enabled.includes(phase) && phaseIndex(state, enabled) >= phaseIndex(phase, enabled);

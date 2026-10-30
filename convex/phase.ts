@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, type MutationCtx } from "./_generated/server";
 import { adminRetro } from "./lib/adminAuth";
-import { nextState, previousPhase } from "./lib/phases";
+import { backDiscardsVotes, nextState, previousPhase } from "./lib/phases";
 import { getRetroOrThrow } from "./lib/retroAccess";
 import { stateValidator } from "./schema";
 
@@ -10,6 +10,9 @@ import { stateValidator } from "./schema";
 // `token` is the admin session token, passed in by the Next.js server from the HTTP-only cookie.
 // Every mutation takes the state the caller saw (`from`); if someone else switched first, the
 // click is ignored instead of skipping a phase.
+
+// 3 votes per participant; far above any real retro, keeps the deletion in one transaction.
+const MAX_VOTES_PER_RETRO = 3000;
 
 async function controllableRetro(ctx: MutationCtx, slug: string, token: string | undefined): Promise<Doc<"retros">> {
   const retro = await getRetroOrThrow(ctx, slug);
@@ -41,15 +44,28 @@ export const startNext = mutation({
 
 /**
  * One phase back (e.g. Discuss → Vote when someone moved on too early). The earlier phase
- * restarts with its full planned duration; ideas, votes and actions are untouched.
+ * restarts with its full planned duration. Going back before the Vote phase deletes all votes
+ * (decision after v0.12); if there are votes, the caller must confirm with `discardVotes`.
  */
 export const back = mutation({
-  args: { slug: v.string(), from: stateValidator, token: v.optional(v.string()) },
+  args: { slug: v.string(), from: stateValidator, token: v.optional(v.string()), discardVotes: v.optional(v.boolean()) },
   returns: v.null(),
-  handler: async (ctx, { slug, from, token }) => {
+  handler: async (ctx, { slug, from, token, discardVotes }) => {
     const retro = await controllableRetro(ctx, slug, token);
     const previous = previousPhase(from, retro.enabledPhases);
     if (retro.state !== from || previous === null) return null;
+    if (backDiscardsVotes(from, retro.enabledPhases)) {
+      const votes = await ctx.db
+        .query("votes")
+        .withIndex("by_retroId_and_participantId_and_column", (q) => q.eq("retroId", retro._id))
+        .take(MAX_VOTES_PER_RETRO);
+      if (votes.length > 0 && !discardVotes) throw new ConvexError("Going back deletes all votes. Please confirm.");
+      const touched = new Set(votes.map((vote) => vote.ideaId));
+      for (const vote of votes) await ctx.db.delete("votes", vote._id);
+      for (const ideaId of touched) {
+        if (await ctx.db.get("ideas", ideaId)) await ctx.db.patch("ideas", ideaId, { voteCount: 0 });
+      }
+    }
     await ctx.db.patch("retros", retro._id, {
       state: previous,
       phaseStartedAt: Date.now(),

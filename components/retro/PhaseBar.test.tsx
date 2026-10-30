@@ -39,6 +39,7 @@ const base: Retro = {
   phaseStartedAt: null,
   phaseDurationSec: null,
   adminControlsPhases: false,
+  hasVotes: false,
 };
 
 const timer = () => screen.getByRole("timer");
@@ -63,11 +64,11 @@ describe("PhaseBar", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Start Vote" }));
-    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "startNext", "brainstorm");
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "startNext", "brainstorm", undefined);
     await user.click(screen.getByRole("button", { name: "+1 min" }));
-    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "extend", "brainstorm");
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "extend", "brainstorm", undefined);
     await user.click(screen.getByRole("button", { name: "End early" }));
-    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "endEarly", "brainstorm");
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "endEarly", "brainstorm", undefined);
   });
 
   test("Back returns to the previous phase and is disabled at the start", async () => {
@@ -78,9 +79,31 @@ describe("PhaseBar", () => {
     expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
     rerender(<PhaseBar retro={{ ...base, state: "discuss" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
     await user.click(screen.getByRole("button", { name: "Back to Vote" }));
-    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "back", "discuss");
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "back", "discuss", undefined);
     rerender(<PhaseBar retro={{ ...base, state: "finished" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
     expect(screen.getByRole("button", { name: "Back to Discuss" })).toBeEnabled();
+  });
+
+  test("warns before going back past Vote when there are votes", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<PhaseBar retro={{ ...base, state: "vote", hasVotes: true }} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    await user.click(screen.getByRole("button", { name: "Back to Brainstorm" }));
+    const dialog = screen.getByRole("alertdialog", { name: "Confirm going back" });
+    expect(dialog).toHaveTextContent("Going back to Brainstorm deletes all votes.");
+    expect(mutate).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back to Brainstorm" }));
+    await user.click(screen.getByRole("button", { name: "Delete votes & go back" }));
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "back", "vote", { discardVotes: true });
+  });
+
+  test("no warning without votes", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<PhaseBar retro={{ ...base, state: "vote" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    await user.click(screen.getByRole("button", { name: "Back to Brainstorm" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "back", "vote", undefined);
   });
 
   test("overtime is shown with a plus sign", () => {
@@ -109,7 +132,7 @@ describe("PhaseBar", () => {
     expect(mutate).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Reset" }));
     await user.click(screen.getByRole("button", { name: "Reset" }));
-    expect(mutate).toHaveBeenCalledWith("k7f3q9xa", "reset", "vote");
+    expect(mutate).toHaveBeenCalledWith("k7f3q9xa", "reset", "vote", undefined);
   });
 
   test("leaves disabled phases out of the stepper", () => {

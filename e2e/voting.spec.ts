@@ -56,5 +56,13 @@ test("one vote per column, movable, and columns re-rank live", async ({ page, br
   await expect(cards(guest, "Keep").first().getByRole("button", { name: "✓ Voted" })).toBeEnabled();
   await expect(cards(guest, "Keep").first()).toContainText("1 vote");
 
+  // Going back before Vote warns and deletes all votes.
+  await page.getByRole("button", { name: "Back to Brainstorm" }).click();
+  await expect(page.getByRole("alertdialog", { name: "Confirm going back" })).toContainText("deletes all votes");
+  await page.getByRole("button", { name: "Delete votes & go back" }).click();
+  await page.getByRole("button", { name: "Start Vote" }).click();
+  await expect(guest.getByLabel("Votes left")).toHaveText("3 of 3 votes left");
+  await expect(cards(guest, "Keep").first()).toContainText("0 votes");
+
   await guest.context().close();
 });

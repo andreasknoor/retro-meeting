@@ -54,11 +54,11 @@ describe("switchPhase", () => {
     expect(args).toEqual({ slug: "k7f3q9xa", from: "intro", token: "tok" });
   });
 
-  test("back is passed through with the seen state", async () => {
-    await switchPhase("k7f3q9xa", "back", "discuss");
+  test("back is passed through with the seen state and the vote confirmation", async () => {
+    await switchPhase("k7f3q9xa", "back", "vote", { discardVotes: true });
     const [ref, args] = vi.mocked(fetchMutation).mock.calls[0];
     expect(getFunctionName(ref as never)).toBe("phase:back");
-    expect(args).toEqual({ slug: "k7f3q9xa", from: "discuss", token: undefined });
+    expect(args).toEqual({ slug: "k7f3q9xa", from: "vote", token: undefined, discardVotes: true });
   });
 
   test("reset takes no state; no cookie means no token", async () => {

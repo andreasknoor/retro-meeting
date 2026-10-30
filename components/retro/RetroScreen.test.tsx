@@ -30,6 +30,7 @@ const retro = {
   phaseStartedAt: null,
   phaseDurationSec: null,
   adminControlsPhases: true,
+  hasVotes: false,
 };
 
 function mockRetro(value: unknown) {

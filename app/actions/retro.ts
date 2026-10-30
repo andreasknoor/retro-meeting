@@ -34,11 +34,17 @@ export type PhaseCommand = "startNext" | "back" | "extend" | "endEarly" | "reset
  * Phase controls go through the server so the admin token (if any) can be read from the
  * cookie. Retros that let anyone switch simply get no token.
  */
-export async function switchPhase(slug: string, command: PhaseCommand, from: RetroState): Promise<ActionResult> {
+export async function switchPhase(
+  slug: string,
+  command: PhaseCommand,
+  from: RetroState,
+  options: { discardVotes?: boolean } = {},
+): Promise<ActionResult> {
   assertSlug(slug);
   try {
     const token = (await readToken(slug)) || undefined;
     if (command === "reset") await fetchMutation(api.phase.reset, { slug, token });
+    else if (command === "back") await fetchMutation(api.phase.back, { slug, from, token, discardVotes: options.discardVotes });
     else await fetchMutation(api.phase[command], { slug, from, token });
     return { ok: true };
   } catch (err) {

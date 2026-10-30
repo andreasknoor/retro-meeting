@@ -83,7 +83,7 @@ A sticky bar below the header contains:
 - **Phase stepper:** done phases show ✓, the current one is highlighted, and each shows its planned minutes.
 - **Countdown** (mm:ss) for the current phase. When it reaches 0:00, it turns red and counts the overtime up (`+01:23`). **It never advances automatically.**
 - **Buttons** (only for the admin by default; for everyone if the retro allows it — see §4.1):
-  - `← Back` returns to the previous enabled phase (from Finished to the last phase); disabled before the start and in the first phase. **[DEFAULT]** The earlier phase restarts with its full planned duration. Ideas, votes, pulse answers and actions are kept; going back to Vote reopens voting, going back to Brainstorm hides the vote counts again until the next Vote phase
+  - `← Back` returns to the previous enabled phase (from Finished to the last phase); disabled before the start and in the first phase. **[DEFAULT]** The earlier phase restarts with its full planned duration. Ideas, pulse answers and actions are kept; going back to Vote reopens voting with the votes kept. **Going back before the Vote phase deletes all votes** (decision after v0.12): if there are votes, an inline warning ("Going back to Brainstorm deletes all votes.") must be confirmed first; the server refuses without that confirmation
   - `Start <next phase>` ends the current phase and starts the next one with its planned duration
   - `+1 min` extends the current phase
   - `End early` ends the current phase without starting the next one; the timer stops and the bar shows `Start <next phase>`
@@ -403,6 +403,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] `phase.back` with the same admin lock and stale-click guard (`from`) as the other phase controls
 - [x] `← Back` button in the phase bar (label "Back to <phase>")
 - [x] Tests: state helper, backend (disabled phases, finished, votes kept and voting reopened), component, E2E
+- [x] v0.13: going back before Vote deletes all votes after an inline warning (only shown when votes exist); `retros.getBySlug` returns `hasVotes`
 
 ### M8 — Polish, QA & launch (1.5 days)
 - [ ] Responsive pass, keyboard navigation, focus states, ARIA labels on vote and score buttons

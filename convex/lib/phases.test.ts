@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Phase } from "./agenda";
-import { canMakeActionFromIdea, hasReached, nextState, phaseIndex, previousPhase, schedule } from "./phases";
+import { backDiscardsVotes, canMakeActionFromIdea, hasReached, nextState, phaseIndex, previousPhase, schedule } from "./phases";
 
 const ALL: Phase[] = ["intro", "brainstorm", "vote", "discuss"];
 const NO_VOTE: Phase[] = ["intro", "brainstorm", "discuss"];
@@ -66,4 +66,13 @@ describe("previousPhase", () => {
     expect(previousPhase("intro", ALL)).toBeNull();
     expect(previousPhase("not_started", ALL)).toBeNull();
   });
+});
+
+test("backDiscardsVotes only when leaving the Vote phase backwards", () => {
+  expect(backDiscardsVotes("vote", ALL)).toBe(true);
+  expect(backDiscardsVotes("discuss", ALL)).toBe(false);
+  expect(backDiscardsVotes("brainstorm", ALL)).toBe(false);
+  expect(backDiscardsVotes("discuss", NO_VOTE)).toBe(false);
+  expect(backDiscardsVotes("finished", ["brainstorm", "vote"])).toBe(false);
+  expect(backDiscardsVotes("vote", ["vote", "brainstorm"])).toBe(true);
 });
