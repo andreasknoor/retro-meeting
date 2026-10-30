@@ -2,7 +2,7 @@
 import { describe, expect, test } from "vitest";
 import { api } from "./_generated/api";
 import type { Phase } from "./lib/agenda";
-import { MAX_ACTIONS } from "./actions";
+import { MAX_ACTIONS, MAX_ACTIONS_PER_PARTICIPANT } from "./actions";
 import { newTest, seedRetro } from "./test.helpers";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -86,13 +86,23 @@ describe("actions.add", () => {
     await expect(t.mutation(api.actions.add, { ...action, slug: other, ideaId })).rejects.toThrow("This idea was deleted.");
   });
 
-  test(`stops at ${MAX_ACTIONS} actions per retro`, async () => {
-    const { t, slug, action } = await setup();
+  test(`limits each participant to ${MAX_ACTIONS_PER_PARTICIPANT} actions`, async () => {
+    const { t, action } = await setup();
     const retroId = (await t.run((ctx) => ctx.db.query("retros").first()))!._id;
     await t.run(async (ctx) => {
-      for (let i = 0; i < MAX_ACTIONS; i++) await ctx.db.insert("actions", { retroId, text: `#${i}`, owner: "A", dueDate: "2099-11-01" });
+      for (let i = 0; i < MAX_ACTIONS_PER_PARTICIPANT; i++)
+        await ctx.db.insert("actions", { retroId, authorId: ALICE, text: `#${i}`, owner: "A", dueDate: "2099-11-01" });
     });
-    await expect(t.mutation(api.actions.add, action)).rejects.toThrow("maximum number of actions");
+    await expect(t.mutation(api.actions.add, action)).rejects.toThrow(`at most ${MAX_ACTIONS_PER_PARTICIPANT} actions`);
+    await t.mutation(api.actions.add, { ...action, participantId: BOB });
+  });
+
+  test(`lists at most ${MAX_ACTIONS} actions`, async () => {
+    const { t, slug } = await setup();
+    const retroId = (await t.run((ctx) => ctx.db.query("retros").first()))!._id;
+    await t.run(async (ctx) => {
+      for (let i = 0; i < MAX_ACTIONS + 5; i++) await ctx.db.insert("actions", { retroId, text: `#${i}`, owner: "A", dueDate: "2099-11-01" });
+    });
     expect(await t.query(api.actions.list, { slug, participantId: ALICE })).toHaveLength(MAX_ACTIONS);
   });
 });

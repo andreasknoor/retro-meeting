@@ -6,6 +6,7 @@ import { deleteIdea } from "./ideas";
 import { orderPhases } from "./lib/agenda";
 import { adminRetro, LOCKOUT_WINDOW_MS, MAX_FAILED_ATTEMPTS, requireAdmin, sha256Hex } from "./lib/adminAuth";
 import { findRetro } from "./lib/retroAccess";
+import { presence } from "./presence";
 import { agendaValidator } from "./schema";
 
 // Login (see adminNode.ts) ------------------------------------------------------------------
@@ -162,6 +163,7 @@ export const deleteRetro = mutation({
     const retro = await requireAdmin(ctx, slug, token, Date.now());
     if (confirmName !== retro.name) throw new ConvexError("Type the retro name exactly to confirm.");
     await ctx.db.delete("retros", retro._id);
+    await presence.removeRoom(ctx, retro._id);
     await ctx.scheduler.runAfter(0, internal.admin.purgeRetroData, { retroId: retro._id });
     return null;
   },

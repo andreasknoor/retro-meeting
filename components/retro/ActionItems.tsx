@@ -53,6 +53,11 @@ export function ActionItems({ retro, participantId, draft, onClearDraft, onAdmin
           draft={draft}
           onClearDraft={onClearDraft}
         />
+        {actions && actions.length >= ACTION_LIMITS.perRetro && (
+          <p role="status" className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+            This retro has too many actions to show them all; only the first {ACTION_LIMITS.perRetro} are shown.
+          </p>
+        )}
         <ul className="grid gap-2" aria-label="Actions">
           {actions?.map((action) => (
             <ActionRow key={action.id} action={action} participantId={participantId} onAdminDelete={onAdminDelete} />

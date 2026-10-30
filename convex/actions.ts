@@ -8,7 +8,9 @@ import { assertParticipantId, findRetro, getRetroOrThrow } from "./lib/retroAcce
 import { ACTION_LIMITS, isIsoDate } from "./lib/validation";
 import { columnValidator } from "./schema";
 
-export const MAX_ACTIONS = 200;
+export const MAX_ACTIONS = ACTION_LIMITS.perRetro;
+// A retro-wide count made simultaneous adds retry each other under load.
+export const MAX_ACTIONS_PER_PARTICIPANT = ACTION_LIMITS.perParticipant;
 
 type ActionFields = { text: string; owner: string; dueDate: string };
 
@@ -91,8 +93,12 @@ export const add = mutation({
     const fields = cleanFields(input);
     const retro = await getRetroOrThrow(ctx, slug);
     await enforce(ctx, "participantWrites", participantId);
-    if ((await actionsOf(ctx, retro._id)).length >= MAX_ACTIONS)
-      throw new ConvexError("This retro has reached the maximum number of actions.");
+    const mine = await ctx.db
+      .query("actions")
+      .withIndex("by_retroId_and_authorId", (q) => q.eq("retroId", retro._id).eq("authorId", participantId))
+      .take(MAX_ACTIONS_PER_PARTICIPANT);
+    if (mine.length >= MAX_ACTIONS_PER_PARTICIPANT)
+      throw new ConvexError(`You can add at most ${MAX_ACTIONS_PER_PARTICIPANT} actions per retro.`);
     if (ideaId) {
       const idea = await ctx.db.get("ideas", ideaId);
       if (!idea || idea.retroId !== retro._id) throw new ConvexError("This idea was deleted.");

@@ -24,6 +24,7 @@ import type * as lib_rateLimits from "../lib/rateLimits.js";
 import type * as lib_retroAccess from "../lib/retroAccess.js";
 import type * as lib_validation from "../lib/validation.js";
 import type * as phase from "../phase.js";
+import type * as presence from "../presence.js";
 import type * as pulse from "../pulse.js";
 import type * as retros from "../retros.js";
 import type * as retrosNode from "../retrosNode.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   "lib/retroAccess": typeof lib_retroAccess;
   "lib/validation": typeof lib_validation;
   phase: typeof phase;
+  presence: typeof presence;
   pulse: typeof pulse;
   retros: typeof retros;
   retrosNode: typeof retrosNode;
@@ -86,4 +88,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+  presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
 };

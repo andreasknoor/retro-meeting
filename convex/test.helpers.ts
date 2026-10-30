@@ -1,4 +1,5 @@
 // Helpers for convex-test only; not a Convex function module.
+import presence from "@convex-dev/presence/test";
 import rateLimiter from "@convex-dev/rate-limiter/test";
 import { convexTest, type TestConvex } from "convex-test";
 import { internal } from "./_generated/api";
@@ -9,6 +10,7 @@ import schema from "./schema";
 export function newTest(modules: Record<string, () => Promise<unknown>>): TestConvex<typeof schema> {
   const t = convexTest(schema, modules);
   rateLimiter.register(t);
+  presence.register(t);
   return t;
 }
 

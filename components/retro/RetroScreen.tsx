@@ -15,6 +15,7 @@ import { ActionItems } from "./ActionItems";
 import { AgendaCard } from "./AgendaCard";
 import { IdeaBoard } from "./IdeaBoard";
 import { PhaseBar } from "./PhaseBar";
+import { PresenceStatus } from "./PresenceStatus";
 import { PulseCard } from "./PulseCard";
 import { RetroHeader } from "./RetroHeader";
 import type { ActionDraft, Retro } from "./types";
@@ -41,7 +42,9 @@ export function RetroScreen({ slug }: { slug: string }) {
   return (
     <>
       <RetroHeader {...retro} lengthMin={agendaTotal(retro.agenda, retro.enabledPhases)} isAdmin={admin} />
-      <PhaseBar retro={retro} hasVotes={hasVotes} isAdmin={admin} onAdminLogin={() => setAdmin(true)} />
+      <PhaseBar retro={retro} hasVotes={hasVotes} isAdmin={admin} onAdminLogin={() => setAdmin(true)}>
+        {participantId && <PresenceStatus retro={retro} participantId={participantId} />}
+      </PhaseBar>
       <main className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6">
         <div className="grid gap-5 lg:grid-cols-[1fr_1.25fr]">
           <AgendaCard retro={retro} />

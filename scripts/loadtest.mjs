@@ -40,14 +40,17 @@ console.log(`Retro ${slug} created; ${N} participants joining…`);
 const people = Array.from({ length: N }, (_, i) => {
   const client = new ConvexClient(url);
   const participantId = `load-${String(i).padStart(4, "0")}-${slug}`;
-  const person = { client, participantId, ideas: [], retro: null, waiters: [] };
-  const notify = () => person.waiters.forEach((w) => w());
+  const person = { client, participantId, ideas: [], retro: null, online: 0, waiters: [] };
+  const notify = () => notifyAll(person);
   client.onUpdate(api.retros.getBySlug, { slug }, (r) => ((person.retro = r), notify()));
   client.onUpdate(api.ideas.list, { slug, participantId }, (list) => ((person.ideas = list), notify()));
   client.onUpdate(api.pulse.summary, { slug, participantId }, () => {});
   client.onUpdate(api.actions.list, { slug, participantId }, () => {});
   return person;
 });
+function notifyAll(person) {
+  person.waiters.forEach((w) => w());
+}
 const until = (person, check) =>
   new Promise((resolve) => {
     if (check()) return resolve();
@@ -66,6 +69,23 @@ async function propagation(label, mutate, seen) {
 const phase = (from) => admin.mutation(api.phase.startNext, { slug, from, token });
 
 await Promise.all(people.map((p) => until(p, () => p.retro !== null)));
+
+// Presence: everyone joins at once, then sends a heartbeat every 10 s like the browser does.
+const heartbeat = (p) =>
+  p.client.mutation(api.presence.heartbeat, { roomId: slug, userId: p.participantId, sessionId: `${p.participantId}-tab`, interval: 10_000 });
+const joins = await Promise.all(
+  people.map((p) =>
+    timed(async () => {
+      const { roomToken } = await heartbeat(p);
+      p.client.onUpdate(api.presence.list, { roomToken }, (list) => ((p.online = list.filter((x) => x.online).length), notifyAll(p)));
+    }),
+  ),
+);
+console.log(`Presence joins: ${stats(joins)}`);
+await Promise.all(people.map((p) => until(p, () => p.online === N)));
+console.log(`  everyone sees ${N} online`);
+const beatTimes = [];
+const beats = setInterval(() => people.forEach((p) => timed(() => heartbeat(p)).then((ms) => beatTimes.push(ms))), 10_000);
 await propagation("phase change", () => phase("not_started"), (p) => p.retro?.state === "intro");
 
 const pulse = await Promise.all(people.map((p, i) => timed(() => p.client.mutation(api.pulse.answer, { slug, participantId: p.participantId, score: 1 + (i % 5) }))));
@@ -101,6 +121,10 @@ const actions = await Promise.all(
 );
 console.log(`Actions added: ${stats(actions)}`);
 await phase("discuss");
+clearInterval(beats);
+// One more round all at once, in case the run was shorter than 10 s.
+beatTimes.push(...(await Promise.all(people.map((p) => timed(() => heartbeat(p))))));
+console.log(`Heartbeats: ${stats(beatTimes)}`);
 
 await admin.mutation(api.admin.deleteRetro, { slug, token, confirmName: (await admin.query(api.retros.getBySlug, { slug })).name });
 console.log(`Retro ${slug} deleted.`);

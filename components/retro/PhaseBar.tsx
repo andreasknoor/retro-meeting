@@ -21,9 +21,11 @@ type Props = {
   /** Whether this browser holds an admin session for the retro. */
   isAdmin: boolean;
   onAdminLogin: () => void;
+  /** Shown next to the timer (who is online). */
+  children?: React.ReactNode;
 };
 
-export function PhaseBar({ retro, hasVotes, isAdmin, onAdminLogin }: Props) {
+export function PhaseBar({ retro, hasVotes, isAdmin, onAdminLogin, children }: Props) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmBack, setConfirmBack] = useState(false);
 
@@ -83,6 +85,7 @@ export function PhaseBar({ retro, hasVotes, isAdmin, onAdminLogin }: Props) {
         </ol>
 
         <PhaseTimer retro={retro} />
+        {children}
 
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           {!canControl ? (

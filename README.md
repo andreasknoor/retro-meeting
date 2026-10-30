@@ -12,6 +12,7 @@ Real-time team retrospectives (Keep / Fix / Try). Participants join via link, no
 - Phases with a synchronized timer: Intro & Pulse → Brainstorm → Vote → Discuss & Act (Back, +1 min, End early, Reset)
 - By default only the admin switches phases; the creator is logged in automatically
 - Anonymous pulse check (1–5), live idea board, one vote per column, action items with owner and optional due date
+- Presence in the phase bar: how many are online, and during Intro / Vote how many have answered / voted
 - Admin area per retro: agenda times, phase control, delete any idea, delete the retro
 
 ## Stack
@@ -65,6 +66,6 @@ A pre-push hook blocks pushes whose HEAD is not tagged with the current version.
 - Admin passwords are stored as salted scrypt hashes; 5 failed logins lock the retro's admin login for 15 minutes.
 - The admin session token lives only in an HTTP-only, SameSite=strict cookie; all admin operations run through server actions.
 - Participants are pseudonymous browser IDs; nothing returned to clients reveals who wrote, voted or answered what.
-- Rate limits (`convex/lib/rateLimits.ts`): 60 new retros per hour overall, 60 writes per minute per browser.
+- Rate limits (`convex/lib/rateLimits.ts`): 60 new retros per hour overall, 60 writes per minute per browser; at most 30 ideas and 20 actions per browser and retro.
 - Security headers (CSP, no framing, `nosniff`) are set in `next.config.ts`.
 - Known limit of the no-login design: a script can invent many participant IDs and so cast extra votes or flood a retro. The retro link is the only access control, so share it only with the team.

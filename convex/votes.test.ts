@@ -89,3 +89,16 @@ describe("votes.toggle", () => {
     expect(await view()).toMatchObject({ K2: [1, true] });
   });
 });
+
+describe("votes.voterCount", () => {
+  test("counts people, not votes", async () => {
+    const { t, slug, k1, f1, toggle } = await setup();
+    expect(await t.query(api.votes.voterCount, { slug })).toBe(0);
+    await toggle(k1);
+    await toggle(f1);
+    expect(await t.query(api.votes.voterCount, { slug })).toBe(1);
+    await toggle(k1, BOB);
+    expect(await t.query(api.votes.voterCount, { slug })).toBe(2);
+    expect(await t.query(api.votes.voterCount, { slug: "missing1" })).toBe(0);
+  });
+});

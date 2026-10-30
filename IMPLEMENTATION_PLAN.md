@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.5** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.6** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -90,6 +90,7 @@ A sticky bar below the header contains:
   - `End early` ends the current phase without starting the next one; the timer stops and the bar shows `Start <next phase>`
   - `Reset` sets the retro back to `not_started` but keeps all data (asks for confirmation inline, not in a browser dialog)
 - **Locked for participants:** they see the timer and the stepper, plus the hint "Only the admin can switch phases." (v1.5; before: "The facilitator controls the phases.") and a **"Log in to control"** button that opens an inline password field (same login, lockout and session as the admin area). The server rejects phase mutations without a valid admin session ("Only the admin can switch phases.").
+- **Presence (v1.6):** next to the timer, "N online" counts the people (browsers, not tabs) that have the retro open, via `@convex-dev/presence` (heartbeat every 10 s; a closed tab leaves at once, a lost connection after about 25 s). During Intro it adds how many have answered the pulse check, during Vote how many have voted.
 - **Sync model:** the server stores `phaseStartedAt` and `phaseDurationSec`, and each client computes the remaining time itself. No server-side ticking is needed, and clients stay in sync up to differences in device clocks. These differences are compensated by a server-time offset measured when the page loads.
 
 ### 4.4 Pulse check
@@ -136,6 +137,7 @@ A sticky bar below the header contains:
 - An action created from an idea links back to it: the idea shows an "→ Action" badge, and the action shows "from Fix: …".
 - Everyone can edit actions (inline); only the participant who added an action, or the admin, can delete it (v1.3), after an inline confirmation (v1.5).
 - The list is sorted by due date, then by creation time; actions without a due date come last.
+- **v1.6:** each participant can add at most 20 actions per retro (checked per author, like ideas, so simultaneous adds don't conflict). The list shows at most 200 and says so when there are more.
 
 ### 4.8 Home page (no public overview)
 - **Decision Q1: link-only.** There is no list of all retros anywhere in the app.
@@ -269,7 +271,9 @@ loginAttempts: defineTable({
 
 **Privacy rules in queries:** `authorId` and `participantId` are never returned to clients. Instead each idea returns `isMine: boolean` and `votedByMe: boolean`, computed from the `participantId` argument. Pulse answers are returned only as aggregates plus the caller's own score.
 
-**Vote integrity:** `votes.toggle` reads and writes only the caller's own vote row for that column (cast, move or take back), so people voting at the same time never touch the same documents. Vote counts are computed in `ideas.list` from the `votes` table instead of a counter on the idea (changed in v0.14 after the load test showed write contention on hot ideas). `ideas.add` caps ideas per participant (30) instead of per retro for the same reason.
+**Vote integrity:** `votes.toggle` reads and writes only the caller's own vote row for that column (cast, move or take back), so people voting at the same time never touch the same documents. Vote counts are computed in `ideas.list` from the `votes` table instead of a counter on the idea (changed in v0.14 after the load test showed write contention on hot ideas). `ideas.add` caps ideas per participant (30) instead of per retro for the same reason, and since v1.6 `actions.add` caps actions per participant (20).
+
+**Presence (v1.6):** heartbeats go to the `@convex-dev/presence` component and touch only the caller's own session row. `presence.list` replaces participant ids with positions before returning, so the room list reveals nobody's id. Deleting a retro removes its room.
 
 ---
 
@@ -289,6 +293,8 @@ loginAttempts: defineTable({
 | `ideas.ts` | `listByRetro` | query | Sorting depends on state; returns `isMine` / `votedByMe` |
 | | `add`, `remove` | mutation | Length limits; `remove` requires the author or an admin |
 | `votes.ts` | `toggle` | mutation | Only in the `vote` state; one per column |
+| | `voterCount` | query | Number of people who have voted (v1.6) |
+| `presence.ts` | `heartbeat`, `list`, `disconnect` | mutation / query | Wraps `@convex-dev/presence`; room = retro, user = participant (v1.6) |
 | `actions.ts` | `list`, `add`, `update`, `remove` | query / mutation | Owner required, due date optional and not in the past; `add` with `ideaId` only in Discuss |
 | `admin.ts` | `login` | action | scrypt verify, rate limit, issues the token |
 | | `logout`, `validate` | mutation / query | |
@@ -421,6 +427,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] v1.3 (security review): global limit on new retros (60/hour, checked before hashing) and a per-browser write limit (60/minute, burst 30) via `@convex-dev/rate-limiter` (`convex/lib/rateLimits.ts`); per-retro caps were tried and dropped because any counter shared by a retro made 30 simultaneous voters wait for seconds (load test), so the board instead says when its list is cut off at 300 ideas. Only the author or the admin can delete an action (`admin.removeAction`). 12-character slugs; `getManyBySlugs` takes at most 20. Security headers (CSP with `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`). GitHub workflows run with read-only tokens
 - [x] v1.4: live URL moved to https://retro-meeting.andreasknoor.com
 - [x] v1.5 (backlog items): pulse results hidden until you answer or the Intro phase is over; pulse question asks about the period, not the retro; the phase lock says "Only the admin can switch phases."; the board hint explains that ideas added during Vote may miss votes and those added later get none; action due dates are optional and cannot be in the past; deleting an action asks inline first. Agenda changes move the running phase's timer by the difference (keeping "+1 min" extensions), and header and agenda card show the actual agenda total. The admin agenda form shows changes from other tabs unless it has unsaved edits ("Unsaved changes", Discard; Save only when changed). `getBySlug` reads only the retro document (whether anyone voted comes from `ideas.list`); a vote flag on the retro was tried and dropped because the first votes all conflicted on it (load test). The board and the pulse card say when vote counts or answers are cut off at 3000 / 500
+- [x] v1.6 (backlog items): actions are capped per participant (20) instead of per retro, which removes the conflicts when many add actions at once (load test, 10 simultaneous adds: p95 from 1.6–3.5 s to 0.44 s); the action list says when it is cut off at 200. Presence: the phase bar shows how many are online and, during Intro / Vote, how many have answered / voted (`@convex-dev/presence`, ids never leave the server; load test: 30 joins p95 0.54 s, heartbeats p95 0.24 s)
 
 **Total: about 9.5 working days.**
 

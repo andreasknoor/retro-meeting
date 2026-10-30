@@ -31,7 +31,10 @@ test("a complete retro with three participants through all phases", async ({ pag
   await alex.getByRole("button", { name: /^4\s*Good$/ }).click();
   await bob.getByRole("button", { name: /^5\s*Great$/ }).click();
   await carol.getByRole("button", { name: /^3\s*Okay$/ }).click();
-  for (const p of everyone) await expect(p.getByText("3 people have answered")).toBeVisible();
+  for (const p of everyone) {
+    await expect(p.getByText("3 people have answered")).toBeVisible();
+    await expect(p.getByLabel("Participants")).toHaveText("3 online· 3 have answered");
+  }
   await expect(bob.getByText("4.0", { exact: true })).toBeVisible();
 
   // 2) Brainstorm
@@ -50,6 +53,7 @@ test("a complete retro with three participants through all phases", async ({ pag
   await vote(alex, "Keep", "Pairing on bugs");
   await vote(carol, "Keep", "Pairing on bugs");
   await vote(bob, "Fix", "Flaky tests");
+  await expect(carol.getByLabel("Participants")).toHaveText("3 online· 3 have voted");
   await showColumn(alex, "Keep");
   await expect(cards(alex, "Keep").first()).toContainText("Top in Keep");
   await expect(cards(alex, "Keep").first()).toContainText("Pairing on bugs");

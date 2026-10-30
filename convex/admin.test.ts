@@ -188,6 +188,7 @@ describe("admin operations", () => {
     await t.mutation(api.actions.add, { slug, participantId: ALICE, text: "Do it", owner: "Alex", dueDate: "2099-11-01" });
     for (const from of ["not_started", "intro", "brainstorm"] as const) await t.mutation(api.phase.startNext, { slug, from, token });
     await t.mutation(api.votes.toggle, { ideaId, participantId: ALICE });
+    const { roomToken } = await t.mutation(api.presence.heartbeat, { roomId: slug, userId: ALICE, sessionId: "tab-1", interval: 10_000 });
     await expect(login("wrong")).rejects.toThrow();
 
     await expect(t.mutation(api.admin.deleteRetro, { slug, token, confirmName: "sprint 42 retro" })).rejects.toThrow(
@@ -205,6 +206,7 @@ describe("admin operations", () => {
       return counts;
     });
     expect(left).toEqual({ retros: 0, ideas: 0, votes: 0, pulseAnswers: 0, actions: 0, adminSessions: 0, loginAttempts: 0 });
+    expect(await t.query(api.presence.list, { roomToken })).toEqual([]);
   });
 });
 

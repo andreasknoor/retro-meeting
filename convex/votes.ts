@@ -1,7 +1,23 @@
 import { ConvexError, v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { IDEA_LIMITS } from "./lib/columns";
 import { enforce } from "./lib/rateLimits";
-import { assertParticipantId } from "./lib/retroAccess";
+import { assertParticipantId, findRetro } from "./lib/retroAccess";
+
+/** How many people have cast at least one vote; not per participant, so everyone shares it. */
+export const voterCount = query({
+  args: { slug: v.string() },
+  returns: v.number(),
+  handler: async (ctx, { slug }) => {
+    const retro = await findRetro(ctx, slug);
+    if (!retro) return 0;
+    const votes = await ctx.db
+      .query("votes")
+      .withIndex("by_retroId_and_participantId_and_column", (q) => q.eq("retroId", retro._id))
+      .take(IDEA_LIMITS.votesPerRetro);
+    return new Set(votes.map((vote) => vote.participantId)).size;
+  },
+});
 
 /**
  * One vote per participant per column (decision A.2), only during the Vote phase.

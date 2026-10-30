@@ -8,7 +8,10 @@ export const LIMITS = {
   passwordMax: 200,
 } as const;
 
-export const ACTION_LIMITS = { text: 200, owner: 60 } as const;
+// `perRetro` bounds every read of a retro's actions; only a flood of made-up participants gets
+// past it, and the list then says so. `perParticipant` is checked per author like ideas, so
+// people adding actions at the same time never read the same rows.
+export const ACTION_LIMITS = { text: 200, owner: 60, perRetro: 200, perParticipant: 20 } as const;
 
 export type RetroInput = {
   name: string;

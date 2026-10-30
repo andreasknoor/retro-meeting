@@ -83,6 +83,7 @@ export default defineSchema({
     authorId: v.optional(v.string()),
   })
     .index("by_retroId", ["retroId"])
+    .index("by_retroId_and_authorId", ["retroId", "authorId"])
     .index("by_ideaId", ["ideaId"]),
 
   adminSessions: defineTable({
