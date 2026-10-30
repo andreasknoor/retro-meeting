@@ -21,10 +21,19 @@ export function IdeaCard({ idea, topLabel, children, actions, onDelete }: Props)
         topLabel && "border-primary",
       )}
     >
-      {topLabel && (
-        <span className="mb-2 inline-block rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-bold tracking-wider text-primary-foreground uppercase">
-          Top in {topLabel}
-        </span>
+      {(topLabel || idea.hasAction) && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {topLabel && (
+            <span className="rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-bold tracking-wider text-primary-foreground uppercase">
+              Top in {topLabel}
+            </span>
+          )}
+          {idea.hasAction && (
+            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold tracking-wider text-emerald-800 uppercase">
+              → Action
+            </span>
+          )}
+        </div>
       )}
       <p className="break-words whitespace-pre-wrap">
         {idea.text}

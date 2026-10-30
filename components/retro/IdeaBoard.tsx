@@ -8,14 +8,21 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { type Column, COLUMN_META, COLUMNS, normalizeInitials } from "@/convex/lib/columns";
-import { hasReached } from "@/convex/lib/phases";
+import { canMakeActionFromIdea, hasReached } from "@/convex/lib/phases";
 import { applyVoteToggle, loadInitials, saveInitials, sortIdeas, topIdea } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
 import { IdeaCard } from "./IdeaCard";
 import { IdeaComposer } from "./IdeaComposer";
 import type { Idea, Retro } from "./types";
 
-export function IdeaBoard({ retro, participantId }: { retro: Retro; participantId: string }) {
+type Props = {
+  retro: Retro;
+  participantId: string;
+  /** "Make action" on an idea (only enabled when the phase allows it). */
+  onMakeAction: (idea: Idea) => void;
+};
+
+export function IdeaBoard({ retro, participantId, onMakeAction }: Props) {
   const { slug, state, enabledPhases } = retro;
   const ideas = useQuery(api.ideas.list, { slug, participantId });
   const addIdea = useMutation(api.ideas.add).withOptimisticUpdate((store, args) => {
@@ -32,6 +39,7 @@ export function IdeaBoard({ retro, participantId }: { retro: Retro; participantI
         createdAt: Number.MAX_SAFE_INTEGER, // sorts last until the server copy arrives
         isMine: true,
         votedByMe: false,
+        hasAction: false,
       },
     ]);
   });
@@ -48,6 +56,7 @@ export function IdeaBoard({ retro, participantId }: { retro: Retro; participantI
   const byVotes = hasReached(state, enabledPhases, "vote");
   const composerMuted = state !== "not_started" && state !== "brainstorm";
   const votingOpen = state === "vote";
+  const canMakeAction = canMakeActionFromIdea(state, enabledPhases);
   const votedColumns = new Set(ideas?.filter((i) => i.votedByMe).map((i) => i.column));
 
   async function add(column: Column, text: string): Promise<boolean> {
@@ -149,6 +158,17 @@ export function IdeaBoard({ retro, participantId }: { retro: Retro; participantI
                       idea={idea}
                       topLabel={idea === top ? label : null}
                       onDelete={idea.isMine ? () => void remove(idea.id) : undefined}
+                      actions={
+                        <button
+                          type="button"
+                          disabled={!canMakeAction}
+                          title={canMakeAction ? undefined : "Available in the Discuss phase"}
+                          onClick={() => onMakeAction(idea)}
+                          className="text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Make action
+                        </button>
+                      }
                     >
                       {votingOn && (
                         <button

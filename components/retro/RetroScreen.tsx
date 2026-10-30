@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,16 +10,18 @@ import { api } from "@/convex/_generated/api";
 import { PHASE_LABELS } from "@/convex/lib/agenda";
 import { useParticipantId } from "@/lib/participant";
 import { forgetRetro, rememberRetro } from "@/lib/recentRetros";
+import { ActionItems } from "./ActionItems";
 import { AgendaCard } from "./AgendaCard";
 import { IdeaBoard } from "./IdeaBoard";
 import { PhaseBar } from "./PhaseBar";
 import { PulseCard } from "./PulseCard";
 import { RetroHeader } from "./RetroHeader";
-import type { Retro } from "./types";
+import type { ActionDraft, Retro } from "./types";
 
 export function RetroScreen({ slug }: { slug: string }) {
   const retro = useQuery(api.retros.getBySlug, { slug });
   const participantId = useParticipantId();
+  const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
 
   useEffect(() => {
     if (retro) rememberRetro(slug);
@@ -42,7 +44,21 @@ export function RetroScreen({ slug }: { slug: string }) {
             <PulseCard retro={retro} participantId={participantId} />
           )}
         </div>
-        {participantId && <IdeaBoard retro={retro} participantId={participantId} />}
+        {participantId && (
+          <IdeaBoard
+            retro={retro}
+            participantId={participantId}
+            onMakeAction={(idea) =>
+              setActionDraft((prev) => ({
+                requestId: (prev?.requestId ?? 0) + 1,
+                ideaId: idea.id,
+                text: idea.text,
+                column: idea.column,
+              }))
+            }
+          />
+        )}
+        <ActionItems retro={retro} draft={actionDraft} onClearDraft={() => setActionDraft(null)} />
       </main>
     </>
   );

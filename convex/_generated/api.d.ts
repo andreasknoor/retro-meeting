@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as actions from "../actions.js";
 import type * as clock from "../clock.js";
 import type * as health from "../health.js";
 import type * as ideas from "../ideas.js";
@@ -30,6 +31,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  actions: typeof actions;
   clock: typeof clock;
   health: typeof health;
   ideas: typeof ideas;

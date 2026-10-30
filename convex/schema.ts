@@ -66,4 +66,14 @@ export default defineSchema({
   })
     .index("by_retroId_and_participantId_and_column", ["retroId", "participantId", "column"])
     .index("by_ideaId", ["ideaId"]),
+
+  actions: defineTable({
+    retroId: v.id("retros"),
+    ideaId: v.optional(v.id("ideas")), // set when created with "Make action"
+    text: v.string(),
+    owner: v.string(),
+    dueDate: v.string(), // ISO date
+  })
+    .index("by_retroId", ["retroId"])
+    .index("by_ideaId", ["ideaId"]),
 });

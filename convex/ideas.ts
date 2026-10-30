@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import { MAX_ACTIONS } from "./actions";
 import { IDEA_LIMITS, normalizeInitials } from "./lib/columns";
 import { assertParticipantId, findRetro, getRetroOrThrow } from "./lib/retroAccess";
 import { columnValidator } from "./schema";
@@ -18,6 +19,7 @@ const ideaValidator = v.object({
   createdAt: v.number(),
   isMine: v.boolean(),
   votedByMe: v.boolean(),
+  hasAction: v.boolean(),
 });
 
 /** All ideas of a retro in creation order; the author is reduced to `isMine` (§6 privacy rules). */
@@ -38,6 +40,11 @@ export const list = query({
       )
       .take(3);
     const votedIds = new Set(myVotes.map((vote) => vote.ideaId));
+    const actions = await ctx.db
+      .query("actions")
+      .withIndex("by_retroId", (q) => q.eq("retroId", retro._id))
+      .take(MAX_ACTIONS);
+    const ideasWithAction = new Set(actions.map((a) => a.ideaId));
     return ideas.map((idea) => ({
       id: idea._id,
       column: idea.column,
@@ -47,6 +54,7 @@ export const list = query({
       createdAt: idea._creationTime,
       isMine: idea.authorId === participantId,
       votedByMe: votedIds.has(idea._id),
+      hasAction: ideasWithAction.has(idea._id),
     }));
   },
 });
@@ -106,6 +114,10 @@ export async function deleteIdea(ctx: MutationCtx, ideaId: Id<"ideas">): Promise
   // One vote per participant per idea, so this is bounded by the number of participants.
   for await (const vote of ctx.db.query("votes").withIndex("by_ideaId", (q) => q.eq("ideaId", ideaId))) {
     await ctx.db.delete("votes", vote._id);
+  }
+  // Actions stay (they were agreed on); they just lose the link to the idea.
+  for await (const action of ctx.db.query("actions").withIndex("by_ideaId", (q) => q.eq("ideaId", ideaId))) {
+    await ctx.db.patch("actions", action._id, { ideaId: undefined });
   }
   await ctx.db.delete("ideas", ideaId);
 }

@@ -373,9 +373,10 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] Concurrency test: 20 parallel votes produce correct counts
 - **Done when:** each person has at most one vote per column, can change it, and the columns re-sort live.
 
-### M6 — Action items (1 day)
-- [ ] CRUD; the `Make action` pre-fill, scroll and focus (Discuss phase only, enforced server-side); the idea ↔ action link badges
-- [ ] Date picker, required-field validation, sorting by due date
+### M6 — Action items (1 day) ✅ v0.8
+- [x] CRUD; the `Make action` pre-fill, scroll and focus (Discuss phase only, enforced server-side); the idea ↔ action link badges
+- [x] Date picker, required-field validation, sorting by due date
+- [x] Inline editing and deletion of actions; deleting an idea keeps its action and only drops the link
 - **Done when:** an action can be created from an idea during Discuss and as free text in any phase, and all actions show an owner and a due date.
 
 ### M7 — Admin area (1 day)

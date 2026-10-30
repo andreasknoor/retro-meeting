@@ -14,6 +14,7 @@ vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }))
 const add = vi.fn();
 const remove = vi.fn();
 const toggle = vi.fn();
+const makeAction = vi.fn();
 let optimisticAdd: (store: unknown, args: Record<string, string>) => void;
 let optimisticVote: (store: unknown, args: Record<string, string>) => void;
 
@@ -74,7 +75,7 @@ const texts = (name: string) =>
 
 describe("IdeaBoard", () => {
   test("shows ideas per column in creation order before voting", () => {
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     expect(texts("Keep")).toEqual(["Short stand-ups", "Pairing"]);
     expect(texts("Fix")).toEqual(["Flaky tests"]);
     expect(within(column("Try")).getByText("No ideas yet")).toBeInTheDocument();
@@ -83,7 +84,7 @@ describe("IdeaBoard", () => {
   });
 
   test("ranks by votes from the Vote phase on and marks the top idea", () => {
-    render(<IdeaBoard retro={{ ...retro, state: "discuss" }} participantId="me-000000" />);
+    render(<IdeaBoard retro={{ ...retro, state: "discuss" }} participantId="me-000000" onMakeAction={makeAction} />);
     expect(texts("Keep")).toEqual(["Pairing", "Short stand-ups"]);
     expect(within(column("Keep")).getByText("Top in Keep")).toBeInTheDocument();
     expect(within(column("Fix")).queryByText("Top in Fix")).not.toBeInTheDocument();
@@ -91,7 +92,7 @@ describe("IdeaBoard", () => {
 
   test("only the author sees Delete", async () => {
     const user = userEvent.setup();
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     expect(within(column("Keep")).queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
     await user.click(within(column("Fix")).getByRole("button", { name: "Delete" }));
     expect(remove).toHaveBeenCalledWith({ ideaId: "i3", participantId: "me-000000" });
@@ -101,7 +102,7 @@ describe("IdeaBoard", () => {
   test("reports a failed delete", async () => {
     const user = userEvent.setup();
     remove.mockRejectedValueOnce(new ConvexError("Only the author can delete this idea."));
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     await user.click(within(column("Fix")).getByRole("button", { name: "Delete" }));
     expect(toast.error).toHaveBeenCalledWith("Only the author can delete this idea.");
   });
@@ -109,7 +110,7 @@ describe("IdeaBoard", () => {
   test("adds an idea with Enter, remembers the initials and clears the draft", async () => {
     const user = userEvent.setup();
     add.mockResolvedValue("new");
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     await user.type(screen.getByLabelText("Initials for Try"), "jk");
     const box = screen.getByLabelText("New idea for Try");
     await user.type(box, "Async stand-up{Enter}");
@@ -128,7 +129,7 @@ describe("IdeaBoard", () => {
 
   test("Shift+Enter makes a new line instead of submitting", async () => {
     const user = userEvent.setup();
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     const box = screen.getByLabelText("New idea for Keep");
     await user.type(box, "Line 1{Shift>}{Enter}{/Shift}Line 2");
     expect(add).not.toHaveBeenCalled();
@@ -138,7 +139,7 @@ describe("IdeaBoard", () => {
   test("keeps the draft and shows the error when adding fails", async () => {
     const user = userEvent.setup();
     add.mockRejectedValue(new ConvexError("The idea is empty."));
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     const box = screen.getByLabelText("New idea for Fix");
     await user.type(box, "Oops");
     await user.click(within(column("Fix")).getByRole("button", { name: "Add" }));
@@ -150,7 +151,7 @@ describe("IdeaBoard", () => {
     const user = userEvent.setup();
     add.mockRejectedValue(new Error("network"));
     remove.mockRejectedValueOnce(new Error("network"));
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     await user.type(screen.getByLabelText("New idea for Fix"), "Oops{Enter}");
     expect(toast.error).toHaveBeenCalledWith("Could not add the idea.");
     await user.click(within(column("Fix")).getByRole("button", { name: "Delete" }));
@@ -158,7 +159,7 @@ describe("IdeaBoard", () => {
   });
 
   test("the optimistic update appends the idea at the end", () => {
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     const store = { getQuery: vi.fn(() => IDEAS), setQuery: vi.fn() };
     optimisticAdd(store, { slug: "k7f3q9xa", participantId: "me-000000", column: "keep", text: " New ", initials: "" });
     const next = store.setQuery.mock.calls[0][2] as Idea[];
@@ -171,7 +172,7 @@ describe("IdeaBoard", () => {
 
   test("mobile column tabs switch the visible column", async () => {
     const user = userEvent.setup();
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     expect(screen.getByRole("tab", { name: "Keep (2)" })).toHaveAttribute("aria-selected", "true");
     expect(column("Fix")).toHaveClass("max-md:hidden");
     await user.click(screen.getByRole("tab", { name: "Fix (1)" }));
@@ -181,7 +182,7 @@ describe("IdeaBoard", () => {
 
   test("renders nothing in the columns while loading", () => {
     vi.mocked(useQuery).mockReturnValue(undefined);
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     expect(screen.queryByText("No ideas yet")).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Keep (0)" })).toBeInTheDocument();
   });
@@ -191,7 +192,7 @@ describe("voting", () => {
   const voteButton = (col: string, n: number) => within(column(col)).getAllByRole("button", { name: /Vote/ })[n];
 
   test("before the Vote phase the buttons are disabled and counts hidden", () => {
-    render(<IdeaBoard retro={retro} participantId="me-000000" />);
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     expect(voteButton("Keep", 0)).toBeDisabled();
     expect(screen.queryByText(/\d votes?$/)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Votes left")).toHaveClass("opacity-50");
@@ -200,7 +201,7 @@ describe("voting", () => {
   test("during the Vote phase: vote, see counts and votes left", async () => {
     const user = userEvent.setup();
     toggle.mockResolvedValue("cast");
-    render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" />);
+    render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" onMakeAction={makeAction} />);
     expect(screen.getByLabelText("Votes left")).toHaveTextContent("2 of 3 votes left");
     expect(within(column("Keep")).getByText("4 votes")).toBeInTheDocument();
     expect(within(column("Keep")).getByText("1 vote")).toBeInTheDocument();
@@ -216,7 +217,7 @@ describe("voting", () => {
     const user = userEvent.setup();
     toggle.mockResolvedValueOnce("moved").mockRejectedValueOnce(new ConvexError("Voting is only possible during the Vote phase."));
     toggle.mockRejectedValueOnce(new Error("network"));
-    render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" />);
+    render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" onMakeAction={makeAction} />);
     await user.click(voteButton("Keep", 1));
     expect(toast).toHaveBeenCalledWith("Vote moved");
     await user.click(voteButton("Keep", 1));
@@ -226,7 +227,7 @@ describe("voting", () => {
   });
 
   test("the optimistic update moves the vote", () => {
-    render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" />);
+    render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" onMakeAction={makeAction} />);
     const store = { getQuery: vi.fn(() => IDEAS), setQuery: vi.fn() };
     optimisticVote(store, { ideaId: "i1", participantId: "me-000000" });
     const next = store.setQuery.mock.calls[0][2] as Idea[];
@@ -241,10 +242,26 @@ describe("voting", () => {
   });
 
   test("no voting UI when the Vote phase is disabled", () => {
-    render(<IdeaBoard retro={{ ...retro, state: "discuss", enabledPhases: ["brainstorm", "discuss"] }} participantId="me-000000" />);
+    render(<IdeaBoard retro={{ ...retro, state: "discuss", enabledPhases: ["brainstorm", "discuss"] }} participantId="me-000000" onMakeAction={makeAction} />);
     expect(screen.queryByRole("button", { name: /Vote/ })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Votes left")).not.toBeInTheDocument();
     expect(texts("Keep")).toEqual(["Short stand-ups", "Pairing"]);
+  });
+});
+
+describe("make action", () => {
+  test("is disabled outside Discuss", () => {
+    render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
+    for (const b of screen.getAllByRole("button", { name: "Make action" })) expect(b).toBeDisabled();
+  });
+
+  test("hands the idea over during Discuss and shows the action badge", async () => {
+    const user = userEvent.setup();
+    vi.mocked(useQuery).mockReturnValue([...IDEAS.slice(0, 2), { ...IDEAS[2], hasAction: true }]);
+    render(<IdeaBoard retro={{ ...retro, state: "discuss" }} participantId="me-000000" onMakeAction={makeAction} />);
+    await user.click(within(column("Keep")).getAllByRole("button", { name: "Make action" })[0]);
+    expect(makeAction).toHaveBeenCalledWith(expect.objectContaining({ id: "i2", text: "Pairing" }));
+    expect(within(column("Fix")).getByText("→ Action")).toBeInTheDocument();
   });
 });
 
