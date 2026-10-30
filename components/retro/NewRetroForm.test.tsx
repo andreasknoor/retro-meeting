@@ -64,6 +64,27 @@ describe("NewRetroForm", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  test("shows a green check as soon as the repeated password matches", async () => {
+    const user = userEvent.setup();
+    render(<NewRetroForm />);
+    const check = () => screen.queryByRole("img", { name: "Passwords match" });
+    await user.type(screen.getByLabelText(/Admin password/), "secret1");
+    const repeat = screen.getByLabelText("Repeat password *");
+    for (const char of "secret") {
+      await user.type(repeat, char);
+      expect(check()).not.toBeInTheDocument();
+    }
+    await user.type(repeat, "1");
+    expect(check()).toBeInTheDocument();
+    await user.type(repeat, "x");
+    expect(check()).not.toBeInTheDocument();
+    await user.type(repeat, "{Backspace}");
+    expect(check()).toBeInTheDocument();
+    // Changing the first password re-checks too.
+    await user.type(screen.getByLabelText(/Admin password/), "!");
+    expect(check()).not.toBeInTheDocument();
+  });
+
   test("rejects mismatching passwords", async () => {
     render(<NewRetroForm />);
     const user = await fillValidForm();

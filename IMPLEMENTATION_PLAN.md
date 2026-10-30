@@ -56,7 +56,7 @@ Set when a retro is created:
 - **Length** in minutes (required; presets 30 / 45 / 60 / 90, default 30)
 - **Facilitator name** (required)
 - **Enabled phases** (checkboxes, all on by default; at least Brainstorm must stay enabled)
-- **Admin password** (required, min 6 chars, entered twice)
+- **Admin password** (required, min 6 chars, entered twice). The repeat field is re-checked on every keystroke (in either field); as soon as both entries are identical, a green check mark appears next to the repeat field
 
 After creation the app redirects to `/r/<slug>` and shows a **"Copy link"** button.
 

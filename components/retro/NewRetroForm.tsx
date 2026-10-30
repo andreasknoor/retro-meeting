@@ -1,6 +1,7 @@
 "use client";
 
 import { useAction } from "convex/react";
+import { Check } from "lucide-react";
 import { ConvexError } from "convex/values";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
@@ -36,6 +37,7 @@ export function NewRetroForm() {
   const [submitting, setSubmitting] = useState(false);
 
   const agenda = calcAgenda(lengthMin, enabled);
+  const passwordsMatch = password2.length > 0 && password === password2;
 
   function togglePhase(phase: Phase) {
     setEnabled((cur) => (cur.includes(phase) ? cur.filter((p) => p !== phase) : [...cur, phase]));
@@ -126,7 +128,17 @@ export function NewRetroForm() {
             <Input id="password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>
           <Field label="Repeat password *" htmlFor="password2">
-            <Input id="password2" type="password" autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)} />
+            {/* Re-checked on every keystroke; the check appears as soon as both entries match. */}
+            <div className="flex items-center gap-2">
+              <Input id="password2" type="password" autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)} />
+              <span className="grid size-6 shrink-0 place-items-center" aria-live="polite">
+                {passwordsMatch && (
+                  <span role="img" aria-label="Passwords match" className="grid size-6 place-items-center rounded-md bg-emerald-600 text-white">
+                    <Check className="size-4" strokeWidth={3} />
+                  </span>
+                )}
+              </span>
+            </div>
           </Field>
 
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 sm:col-span-2">

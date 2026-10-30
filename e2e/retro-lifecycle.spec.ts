@@ -12,7 +12,10 @@ test("create a retro, open it via link and find it under recent retros", async (
   await page.getByLabel("Vote").uncheck();
   await expect(page.getByRole("list", { name: "Agenda preview" })).not.toContainText("Vote");
   await page.getByLabel(/Admin password/).fill("e2e-secret");
-  await page.getByLabel("Repeat password *").fill("e2e-secret");
+  await page.getByLabel("Repeat password *").fill("e2e-secre");
+  await expect(page.getByRole("img", { name: "Passwords match" })).toHaveCount(0);
+  await page.getByLabel("Repeat password *").pressSequentially("t");
+  await expect(page.getByRole("img", { name: "Passwords match" })).toBeVisible();
   await page.getByRole("button", { name: "Create retro" }).click();
 
   await expect(page).toHaveURL(/\/r\/[a-z0-9]{8}$/, { timeout: 30_000 });
