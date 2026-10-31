@@ -8,7 +8,10 @@ const modules = import.meta.glob("./**/*.ts");
 const participant = (i: number) => `person-${String(i).padStart(4, "0")}`;
 
 // Frozen clock: token buckets do not refill while a test runs.
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+});
 
 describe("rate limits", () => {
   test("creating retros is limited globally, before any hashing", async () => {
@@ -21,6 +24,19 @@ describe("rate limits", () => {
         name: "Spam", subtitle: "", date: "2026-10-28", lengthMin: 30, facilitator: "F", enabledPhases: ["brainstorm"], password: "secret1",
       }),
     ).rejects.toThrow("Too many new retros right now.");
+  });
+
+  test("RELAX_CREATE_RETRO_LIMIT=true (dev deployment only) skips the limit on new retros", async () => {
+    vi.stubEnv("RELAX_CREATE_RETRO_LIMIT", "true");
+    const t = newTest(modules);
+    await t.run(async (ctx) => {
+      await rateLimiter.limit(ctx, "createRetro", { count: 60 });
+    });
+    await expect(
+      t.action(api.retrosNode.create, {
+        name: "Dev", subtitle: "", date: "2026-10-28", lengthMin: 30, facilitator: "F", enabledPhases: ["brainstorm"], password: "secret1",
+      }),
+    ).resolves.toHaveProperty("slug");
   });
 
   test("one participant writing very fast is slowed down, across answers, ideas and actions", async () => {

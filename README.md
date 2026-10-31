@@ -67,6 +67,6 @@ A pre-push hook blocks pushes whose HEAD is not tagged with the current version.
 - Admin passwords are stored as salted scrypt hashes; after 3 failed logins in a row, each further attempt waits longer (10 s up to 2 minutes), so nobody can lock the admin out.
 - The admin session token lives only in an HTTP-only, SameSite=strict cookie; all admin operations run through server actions.
 - Participants are pseudonymous browser IDs; nothing returned to clients reveals who wrote, voted or answered what.
-- Rate limits (`convex/lib/rateLimits.ts`): 60 new retros per hour overall, 60 writes per minute per browser; at most 30 ideas and 20 actions per browser and retro.
+- Rate limits (`convex/lib/rateLimits.ts`): 60 new retros per hour overall (switched off on the dev deployment with the Convex env var `RELAX_CREATE_RETRO_LIMIT=true`, so E2E runs aren't throttled; never set it on production), 60 writes per minute per browser; at most 30 ideas and 20 actions per browser and retro.
 - Security headers (CSP, no framing, `nosniff`) are set in `next.config.ts`.
 - Known limit of the no-login design: a script can invent many participant IDs and so cast extra votes or flood a retro. The retro link is the only access control, so share it only with the team.

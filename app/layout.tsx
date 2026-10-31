@@ -22,9 +22,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col bg-background">
         <nav className="border-b bg-card">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
-            <Link href="/" className="font-bold tracking-tight">
-              Retro Meeting
-            </Link>
+            <span className="flex items-baseline gap-2">
+              <Link href="/" className="font-bold tracking-tight">
+                Retro Meeting
+              </Link>
+              <span className="text-xs text-muted-foreground">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+            </span>
             <Link href="/new" className="text-sm font-semibold text-primary">
               + New retro
             </Link>
@@ -34,9 +37,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <ConnectionBanner />
           <div className="flex-1">{children}</div>
         </ConvexClientProvider>
-        <footer className="px-4 py-6 text-center text-xs text-muted-foreground">
-          v{process.env.NEXT_PUBLIC_APP_VERSION}
-        </footer>
         <Toaster position="bottom-center" />
       </body>
     </html>

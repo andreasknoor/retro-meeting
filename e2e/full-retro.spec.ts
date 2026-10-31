@@ -70,6 +70,8 @@ test("a complete retro with three participants through all phases", async ({ pag
   await form(bob).getByLabel("Owner").fill("Bob");
   await form(bob).getByLabel("Due date").fill("2099-11-10");
   await form(bob).getByRole("button", { name: "Add action" }).click();
+  // Both actions must have arrived before finishing: after the end, ideas can't become actions.
+  await expect(alex.getByRole("list", { name: "Actions" }).getByRole("listitem")).toHaveCount(2);
 
   // 5) Finish: everyone sees the same result
   await alex.getByRole("button", { name: "Finish retro" }).click();
