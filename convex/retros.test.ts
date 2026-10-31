@@ -39,6 +39,28 @@ describe("retros.create", () => {
     expect(retro!.agenda.vote).toBe(0);
   });
 
+  test("stores format, votes and check-in question; defaults for older retros", async () => {
+    const t = newTest(modules);
+    const plain = await t.action(api.retrosNode.create, input);
+    expect(await t.query(api.retros.getBySlug, { slug: plain.slug })).toMatchObject({
+      template: "keep_fix_try",
+      votesPerPerson: null,
+      icebreaker: null,
+    });
+    const custom = await t.action(api.retrosNode.create, {
+      ...input,
+      template: "mad_sad_glad",
+      votesPerPerson: 5,
+      icebreaker: "  One word for the sprint? ",
+    });
+    expect(await t.query(api.retros.getBySlug, { slug: custom.slug })).toMatchObject({
+      template: "mad_sad_glad",
+      votesPerPerson: 5,
+      icebreaker: "One word for the sprint?",
+    });
+    await expect(t.action(api.retrosNode.create, { ...input, votesPerPerson: 0 })).rejects.toThrow("Votes per person");
+  });
+
   test("only the admin controls phases by default; can be switched off", async () => {
     const t = newTest(modules);
     const a = await t.action(api.retrosNode.create, input);

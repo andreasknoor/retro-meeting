@@ -6,18 +6,26 @@ import { api } from "@/convex/_generated/api";
 import { useOnlineCount } from "@/lib/useOnlineCount";
 import type { Retro } from "./types";
 
-/** How many have the retro open, and during Intro and Vote how many have answered or voted. */
+/** How many have the retro open, and during Intro, Brainstorm and Vote how many have answered, added ideas or voted. */
 export function PresenceStatus({ retro, participantId }: { retro: Retro; participantId: string }) {
   const { slug, state } = retro;
   const online = useOnlineCount(slug, participantId);
   // Same subscription as the pulse card's.
   const pulse = useQuery(api.pulse.summary, state === "intro" ? { slug, participantId } : "skip");
   const voters = useQuery(api.votes.voterCount, state === "vote" ? { slug } : "skip");
+  // Anonymous nudge for quiet people (backlog 12): a count, never names.
+  const contributors = useQuery(api.ideas.contributorCount, state === "brainstorm" ? { slug } : "skip");
 
   if (online === undefined) return null;
   const done = (n: number, verb: string) => `${n} ${n === 1 ? "has" : "have"} ${verb}`;
   const progress =
-    pulse ? done(pulse.total, "answered") : voters !== undefined ? done(voters, "voted") : null;
+    pulse
+      ? done(pulse.total, "answered")
+      : voters !== undefined
+        ? done(voters, "voted")
+        : contributors !== undefined
+          ? done(contributors, "added ideas")
+          : null;
 
   return (
     <p className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground" aria-label="Participants">

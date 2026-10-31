@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { type Column, COLUMN_META, COLUMNS, IDEA_LIMITS, normalizeInitials } from "@/convex/lib/columns";
+import { type Column, columnMeta, COLUMNS, IDEA_LIMITS, normalizeInitials } from "@/convex/lib/columns";
 import { canMakeActionFromIdea, focusArea, hasReached } from "@/convex/lib/phases";
 import { applyVoteToggle, loadInitials, saveInitials, sortIdeas, topIdea } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,10 @@ type Props = {
 
 export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }: Props) {
   const { slug, state, enabledPhases } = retro;
+  const meta = columnMeta(retro.template);
+  // One vote per column (default), or votesPerPerson to spend freely, at most one per idea (v1.12).
+  const perColumn = retro.votesPerPerson === null;
+  const totalVotes = retro.votesPerPerson ?? COLUMNS.length;
   const ideas = useQuery(api.ideas.list, { slug, participantId });
   const addIdea = useMutation(api.ideas.add).withOptimisticUpdate((store, args) => {
     const current = store.getQuery(api.ideas.list, { slug, participantId });
@@ -49,7 +53,7 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
   const removeIdea = useMutation(api.ideas.remove);
   const toggleVote = useMutation(api.votes.toggle).withOptimisticUpdate((store, args) => {
     const current = store.getQuery(api.ideas.list, { slug, participantId });
-    if (current) store.setQuery(api.ideas.list, { slug, participantId }, applyVoteToggle(current, args.ideaId));
+    if (current) store.setQuery(api.ideas.list, { slug, participantId }, applyVoteToggle(current, args.ideaId, perColumn));
   });
 
   const [initials, setInitials] = useState(loadInitials);
@@ -62,7 +66,11 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
   const finished = state === "finished";
   const composerMuted = state !== "not_started" && state !== "brainstorm";
   const canMakeAction = canMakeActionFromIdea(state, enabledPhases);
-  const votedColumns = new Set(ideas?.filter((i) => i.votedByMe).map((i) => i.column));
+  const myVotes = ideas?.filter((i) => i.votedByMe) ?? [];
+  const votedColumns = new Set(myVotes.map((i) => i.column));
+  const votesLeft = totalVotes - (perColumn ? votedColumns.size : myVotes.length);
+  /** Whether a "+ Vote" on this idea would use a free vote (filled call to action) or not. */
+  const canCastOn = (idea: Idea) => (perColumn ? !votedColumns.has(idea.column) : votesLeft > 0);
 
   async function add(column: Column, text: string): Promise<boolean> {
     saveInitials(initials);
@@ -89,6 +97,10 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
   }
 
   async function vote(idea: Idea) {
+    if (!idea.votedByMe && !perColumn && votesLeft <= 0) {
+      toast.error("No votes left. Take one back first.");
+      return;
+    }
     try {
       const result = await toggleVote({ ideaId: idea.id, participantId });
       if (result === "moved") toast("Vote moved");
@@ -101,20 +113,26 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
     <Card className={cn(focusArea(state) === "board" && "ring-2 ring-primary")}>
       <CardHeader>
         <CardTitle className="text-xl">Idea board</CardTitle>
-        <CardDescription>{boardHint(state, votingOn, byVotes, canMakeAction)}</CardDescription>
+        <CardDescription>{boardHint(state, votingOn, byVotes, canMakeAction, retro.votesPerPerson)}</CardDescription>
         {votingOn && (
           <CardAction
             className={cn("flex items-center gap-1.5 text-sm font-bold", votingOpen ? "text-primary" : "text-muted-foreground")}
             aria-label="Votes left"
           >
-            {COLUMNS.map((column) => (
-              <span
-                key={column}
-                title={COLUMN_META[column].label}
-                className={cn("size-3 rounded-full border-2 border-current", votedColumns.has(column) && "bg-current")}
-              />
-            ))}
-            <span className="ml-1">{3 - votedColumns.size} of 3 votes left</span>
+            {perColumn
+              ? COLUMNS.map((column) => (
+                  <span
+                    key={column}
+                    title={meta[column].label}
+                    className={cn("size-3 rounded-full border-2 border-current", votedColumns.has(column) && "bg-current")}
+                  />
+                ))
+              : Array.from({ length: totalVotes }, (_, i) => (
+                  <span key={i} className={cn("size-3 rounded-full border-2 border-current", i < myVotes.length && "bg-current")} />
+                ))}
+            <span className="ml-1">
+              {votesLeft} of {totalVotes} {totalVotes === 1 ? "vote" : "votes"} left
+            </span>
           </CardAction>
         )}
       </CardHeader>
@@ -142,7 +160,7 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
                 mobileColumn === column && "border-primary bg-primary text-primary-foreground",
               )}
             >
-              {COLUMN_META[column].label} ({ideas?.filter((i) => i.column === column).length ?? 0})
+              {meta[column].label} ({ideas?.filter((i) => i.column === column).length ?? 0})
             </button>
           ))}
         </div>
@@ -151,7 +169,7 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
           {COLUMNS.map((column) => {
             const sorted = sortIdeas(ideas?.filter((i) => i.column === column) ?? [], byVotes);
             const top = topIdea(sorted, byVotes);
-            const { label, question } = COLUMN_META[column];
+            const { label, question } = meta[column];
             return (
               <section
                 key={column}
@@ -165,7 +183,7 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
                 <p className="mb-3 text-sm text-muted-foreground">{question}</p>
                 {!finished && (
                   <IdeaComposer
-                    column={column}
+                    label={label}
                     muted={composerMuted}
                     initials={initials}
                     onInitialsChange={setInitials}
@@ -194,11 +212,11 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
                       }
                     >
                       {votingOpen && (
-                        // A call to action like "Start Vote" while this column's vote is still free;
-                        // once used, the other cards only offer to move it, so they step back.
+                        // A call to action like "Start Vote" while a vote is free for this card; once
+                        // used up, the other cards only offer to move it (per column), so they step back.
                         <Button
                           size="sm"
-                          variant={idea.votedByMe ? "secondary" : votedColumns.has(idea.column) ? "outline" : "default"}
+                          variant={idea.votedByMe ? "secondary" : canCastOn(idea) ? "default" : "outline"}
                           aria-pressed={idea.votedByMe}
                           onClick={() => void vote(idea)}
                           className={cn("h-8 px-3.5 text-sm font-semibold", idea.votedByMe && "border-primary text-primary")}
@@ -236,10 +254,20 @@ function deleteWarning(idea: Idea, votingOpen: boolean, countsVisible: boolean):
   return undefined;
 }
 
-export function boardHint(state: Retro["state"], votingOn: boolean, byVotes: boolean, canMakeAction = false): string {
+export function boardHint(
+  state: Retro["state"],
+  votingOn: boolean,
+  byVotes: boolean,
+  canMakeAction = false,
+  votesPerPerson: number | null = null,
+): string {
   const makeAction = canMakeAction ? " Use “Make action” to turn an idea into an action." : "";
   if (state === "vote") {
-    return "Voting is open: one vote per column. Tap another idea to move your vote, or tap ✓ Voted to take it back. Vote counts stay hidden until voting ends. Ideas added now may miss the votes already cast.";
+    const rules =
+      votesPerPerson === null
+        ? "one vote per column. Tap another idea to move your vote, or tap ✓ Voted to take it back."
+        : `${votesPerPerson} ${votesPerPerson === 1 ? "vote" : "votes"} to spend freely, at most one per idea. Tap ✓ Voted to take one back.`;
+    return `Voting is open: ${rules} Vote counts stay hidden until voting ends. Ideas added now may miss the votes already cast.`;
   }
   if (state === "finished") {
     return `${byVotes ? "Each column is ranked by votes. " : ""}The retro is finished, so the board is read-only.${makeAction}`;

@@ -4,11 +4,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { type Column, COLUMN_META, IDEA_LIMITS } from "@/convex/lib/columns";
+import { IDEA_LIMITS } from "@/convex/lib/columns";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  column: Column;
+  /** The column's label in the retro's format, e.g. "Keep" or "Start". */
+  label: string;
   muted: boolean;
   initials: string;
   onInitialsChange: (initials: string) => void;
@@ -16,9 +17,8 @@ type Props = {
   onAdd: (text: string) => Promise<boolean>;
 };
 
-export function IdeaComposer({ column, muted, initials, onInitialsChange, onAdd }: Props) {
+export function IdeaComposer({ label, muted, initials, onInitialsChange, onAdd }: Props) {
   const [text, setText] = useState("");
-  const label = COLUMN_META[column].label;
 
   async function submit() {
     if (!text.trim()) return;

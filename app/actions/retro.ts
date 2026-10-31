@@ -3,6 +3,7 @@
 import { fetchAction, fetchMutation } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import type { Phase } from "@/convex/lib/agenda";
+import type { Template } from "@/convex/lib/columns";
 import type { RetroState } from "@/convex/lib/phases";
 import { type ActionResult, assertSlug, failure, readToken, storeToken } from "./session";
 
@@ -15,6 +16,9 @@ export type CreateRetroInput = {
   enabledPhases: Phase[];
   password: string;
   adminControlsPhases: boolean;
+  template?: Template;
+  votesPerPerson?: number;
+  icebreaker?: string;
 };
 
 /** Creates the retro and logs the creator in as admin (auto-login via the HTTP-only cookie). */
@@ -47,6 +51,18 @@ export async function switchPhase(
       await fetchMutation(api.phase[command], { slug, from, token, discardVotes: options.discardVotes });
     }
     else await fetchMutation(api.phase[command], { slug, from, token });
+    return { ok: true };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+/** "Another question" or an own one for the check-in; needs the admin cookie like phase controls. */
+export async function changeIcebreaker(slug: string, question: string): Promise<ActionResult> {
+  assertSlug(slug);
+  try {
+    const token = (await readToken(slug)) || undefined;
+    await fetchMutation(api.phase.setIcebreaker, { slug, question, token });
     return { ok: true };
   } catch (err) {
     return failure(err);

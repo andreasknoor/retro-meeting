@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
-import { COLUMN_META } from "@/convex/lib/columns";
+import { columnMeta } from "@/convex/lib/columns";
 import { focusArea } from "@/convex/lib/phases";
 import { ACTION_LIMITS } from "@/convex/lib/validation";
 import { formatDueDate, todayIso } from "@/lib/format";
@@ -53,6 +53,7 @@ export function ActionItems({ retro, participantId, draft, onClearDraft, onAdmin
           draft={draft}
           onClearDraft={onClearDraft}
           existing={draft ? (actions ?? []).filter((a) => a.idea?.id === draft.ideaId).map((a) => a.text) : []}
+          columnLabel={draft ? columnMeta(retro.template)[draft.column].label : ""}
         />
         {actions && actions.length >= ACTION_LIMITS.perRetro && (
           <p role="status" className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
@@ -61,7 +62,7 @@ export function ActionItems({ retro, participantId, draft, onClearDraft, onAdmin
         )}
         <ul className="grid gap-2" aria-label="Actions">
           {actions?.map((action) => (
-            <ActionRow key={action.id} action={action} slug={retro.slug} participantId={participantId} onAdminDelete={onAdminDelete} />
+            <ActionRow key={action.id} action={action} template={retro.template} slug={retro.slug} participantId={participantId} onAdminDelete={onAdminDelete} />
           ))}
         </ul>
         {actions?.length === 0 && (
@@ -78,6 +79,7 @@ function ActionForm({
   draft,
   onClearDraft,
   existing,
+  columnLabel,
 }: {
   slug: string;
   participantId: string;
@@ -85,6 +87,8 @@ function ActionForm({
   onClearDraft: () => void;
   /** Texts of the actions the draft's idea already has. */
   existing: string[];
+  /** Label of the draft idea's column in the retro's format. */
+  columnLabel: string;
 }) {
   const add = useMutation(api.actions.add);
   const [text, setText] = useState(draft?.text.slice(0, ACTION_LIMITS.text) ?? "");
@@ -127,7 +131,7 @@ function ActionForm({
       </div>
       {draft && (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          From {COLUMN_META[draft.column].label}: “{draft.text.length > 60 ? `${draft.text.slice(0, 60)}…` : draft.text}”
+          From {columnLabel}: “{draft.text.length > 60 ? `${draft.text.slice(0, 60)}…` : draft.text}”
           <button type="button" aria-label="Unlink idea" onClick={onClearDraft} className="hover:text-destructive">
             ✕
           </button>
@@ -145,11 +149,13 @@ function ActionForm({
 
 function ActionRow({
   action,
+  template,
   slug,
   participantId,
   onAdminDelete,
 }: {
   action: ActionItem;
+  template: Retro["template"];
   slug: string;
   participantId: string;
   onAdminDelete?: Props["onAdminDelete"];
@@ -234,7 +240,7 @@ function ActionRow({
         />
         <div className="min-w-0">
           <p className={cn("font-semibold break-words", action.done && "text-muted-foreground line-through")}>{action.text}</p>
-          {action.idea && <p className="text-xs text-muted-foreground">from {COLUMN_META[action.idea.column].label}</p>}
+          {action.idea && <p className="text-xs text-muted-foreground">from {columnMeta(template)[action.idea.column].label}</p>}
         </div>
       </div>
       <div>

@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.11** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.12** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -104,7 +104,7 @@ A sticky bar below the header contains:
 - If the Intro phase is disabled, the pulse check card is hidden.
 
 ### 4.5 Idea board
-- **Three fixed columns:** **Keep** ("What worked well?"), **Fix** ("What got in the way?"), **Try** ("What should we try next?"). Each column header shows its idea count.
+- **Three fixed columns:** **Keep** ("What worked well?"), **Fix** ("What got in the way?"), **Try** ("What should we try next?"). Each column header shows its idea count. Since v1.12 the creator can pick another format with the same three columns: **Start / Stop / Continue** or **Mad / Sad / Glad**.
 - **Adding an idea:** a textarea (max 500 chars) plus an optional **initials** field (max 4 chars, remembered in the browser for next time). Press Enter to submit and Shift+Enter for a new line.
 - **Realtime:** new ideas appear for everyone immediately.
 - **Order:**
@@ -119,7 +119,7 @@ A sticky bar below the header contains:
 - **Finished (v1.7):** the board and the pulse check are read-only (server-enforced: `ideas.add`, the author's `ideas.remove`, `pulse.answer`). The admin can still delete ideas; actions stay editable and can be ticked off. A note says so and that `Back` reopens the retro.
 
 ### 4.6 Voting
-- **One vote per person per column** (so at most 3 votes per person).
+- **One vote per person per column** (so at most 3 votes per person). Since v1.12 the creator can instead give each person 1–10 votes to spend freely, at most one per idea (no moving; tap ✓ Voted to take one back).
 - Voting for an idea in a column where you already voted **moves** your vote. Tapping `✓ Voted` **takes the vote back**.
 - **v1.7:** vote counts stay hidden during the Vote phase (the server sends 0, only `votedByMe` is real), so late voters cannot follow the trend; they show once the phase is over. Who voted for what is never shown. The phase bar shows how many have voted (`votes.voterCount`).
 - A header indicator shows your remaining votes: `● ● ○ 1 of 3 votes left`, with one dot per column.
@@ -439,6 +439,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] v1.9: "QR code" next to "Copy link" in the retro header opens a large QR code of the retro link (for joining by phone during a video call); generated in the browser with `qrcode`, so the link never reaches a third-party service
 - [x] v1.10: during the Vote phase, `+ Vote` is a filled call-to-action button (like `Start Vote`) on every card of a column whose vote is still free; once the column's vote is used, the chosen card shows `✓ Voted` (outlined in the primary colour) and the others step back to a neutral outline
 - [x] v1.11: presence counts hidden tabs as online (own heartbeat hook instead of the component's `usePresence`, which disconnected on `visibilitychange`); heartbeat 20 s, offline after ~50 s without one or at once when the tab closes
+- [x] v1.12: set when creating a retro (not changeable later): the **format** (Keep / Fix / Try, Start / Stop / Continue or Mad / Sad / Glad; always three columns with the keys `keep`/`fix`/`try`, only labels and questions change, `columnMeta(template)`), the **voting mode** (one vote per column, or 1–10 votes to spend freely with at most one per idea; `votes.toggle` reads only the caller's own votes) and an optional **check-in question** (needs Intro; random from a catalog of 40 in `convex/lib/icebreakers.ts`, or an own one). The check-in card shows before the start and during Intro; whoever may switch phases can draw another question or write their own (`phase.setIcebreaker`). During Brainstorm the phase bar shows how many have added ideas (`ideas.contributorCount`, no names). Load test with free votes: counts correct
 
 **Total: about 9.5 working days.**
 

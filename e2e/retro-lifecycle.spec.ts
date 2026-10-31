@@ -9,7 +9,7 @@ test("create a retro, open it via link and find it under recent retros", async (
   await page.getByLabel("Goal / subtitle").fill("Created by Playwright");
   await page.getByLabel("Facilitator *").fill("Playwright");
   await page.getByRole("button", { name: "45 min" }).click();
-  await page.getByLabel("Vote").uncheck();
+  await page.getByLabel("Vote", { exact: true }).uncheck();
   await expect(page.getByRole("list", { name: "Agenda preview" })).not.toContainText("Vote");
   await page.getByLabel(/Admin password/).fill("e2e-secret");
   await page.getByLabel("Repeat password *").fill("e2e-secre");

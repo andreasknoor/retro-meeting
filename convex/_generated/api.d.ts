@@ -18,6 +18,7 @@ import type * as ideas from "../ideas.js";
 import type * as lib_adminAuth from "../lib/adminAuth.js";
 import type * as lib_agenda from "../lib/agenda.js";
 import type * as lib_columns from "../lib/columns.js";
+import type * as lib_icebreakers from "../lib/icebreakers.js";
 import type * as lib_phases from "../lib/phases.js";
 import type * as lib_pulse from "../lib/pulse.js";
 import type * as lib_rateLimits from "../lib/rateLimits.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   "lib/adminAuth": typeof lib_adminAuth;
   "lib/agenda": typeof lib_agenda;
   "lib/columns": typeof lib_columns;
+  "lib/icebreakers": typeof lib_icebreakers;
   "lib/phases": typeof lib_phases;
   "lib/pulse": typeof lib_pulse;
   "lib/rateLimits": typeof lib_rateLimits;

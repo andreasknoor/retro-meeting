@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { calcAgenda, LENGTH_PRESETS, PHASE_LABELS, PHASES, type Phase } from "@/convex/lib/agenda";
+import { columnMeta, FREE_VOTES, type Template, TEMPLATE_LABELS, TEMPLATES } from "@/convex/lib/columns";
+import { ICEBREAKER_MAX_LENGTH, randomIcebreaker } from "@/convex/lib/icebreakers";
 import { LIMITS, validateRetroInput } from "@/convex/lib/validation";
 import { todayIso } from "@/lib/format";
 import { rememberRetro } from "@/lib/recentRetros";
@@ -31,6 +33,11 @@ export function NewRetroForm() {
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [adminControlsPhases, setAdminControlsPhases] = useState(true);
+  const [template, setTemplate] = useState<Template>("keep_fix_try");
+  const [freeVoting, setFreeVoting] = useState(false);
+  const [votesPerPerson, setVotesPerPerson] = useState<number>(FREE_VOTES.default);
+  const [checkIn, setCheckIn] = useState(false);
+  const [ownQuestion, setOwnQuestion] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,7 +50,19 @@ export function NewRetroForm() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const input = { name, subtitle, date, lengthMin, facilitator, enabledPhases: enabled, password };
+    const withCheckIn = checkIn && enabled.includes("intro");
+    const input = {
+      name,
+      subtitle,
+      date,
+      lengthMin,
+      facilitator,
+      enabledPhases: enabled,
+      password,
+      votesPerPerson: freeVoting && enabled.includes("vote") ? votesPerPerson : undefined,
+      // A random catalog question is drawn here, so the creator could already see it on the page.
+      icebreaker: withCheckIn ? (ownQuestion ?? randomIcebreaker()) : undefined,
+    };
     const problems = validateRetroInput(input);
     if (password.length >= LIMITS.passwordMin && password !== password2) problems.push("Passwords do not match.");
     setErrors(problems);
@@ -52,7 +71,7 @@ export function NewRetroForm() {
     setSubmitting(true);
     try {
       // Server action: creates the retro and logs us in as admin (HTTP-only cookie).
-      const result = await createRetro({ ...input, adminControlsPhases });
+      const result = await createRetro({ ...input, adminControlsPhases, template });
       if (!result.ok) {
         setErrors([result.error]);
         setSubmitting(false);
@@ -116,6 +135,89 @@ export function NewRetroForm() {
                 </label>
               ))}
             </div>
+          </fieldset>
+
+          <fieldset className="grid gap-2 sm:col-span-2">
+            <legend className="mb-2 text-sm font-medium">Format</legend>
+            <div className="flex flex-wrap gap-2">
+              {TEMPLATES.map((t) => (
+                <Button key={t} type="button" variant={template === t ? "default" : "outline"} aria-pressed={template === t} onClick={() => setTemplate(t)}>
+                  {TEMPLATE_LABELS[t]}
+                </Button>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Columns: {Object.values(columnMeta(template)).map((c) => `${c.label} (${c.question})`).join(" · ")}
+            </p>
+          </fieldset>
+
+          {enabled.includes("vote") && (
+            <fieldset className="grid gap-2 sm:col-span-2">
+              <legend className="mb-2 text-sm font-medium">Voting</legend>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input type="radio" name="voting" className="accent-primary" checked={!freeVoting} onChange={() => setFreeVoting(false)} />
+                One vote per column
+              </label>
+              <label className="flex cursor-pointer flex-wrap items-center gap-2 text-sm">
+                <input type="radio" name="voting" className="accent-primary" checked={freeVoting} onChange={() => setFreeVoting(true)} />
+                Votes to spend freely, at most one per idea:
+                <Input
+                  type="number"
+                  aria-label="Votes per person"
+                  className="h-8 w-20"
+                  min={FREE_VOTES.min}
+                  max={FREE_VOTES.max}
+                  value={votesPerPerson}
+                  disabled={!freeVoting}
+                  onChange={(e) => setVotesPerPerson(Number(e.target.value))}
+                />
+              </label>
+              <p className="text-sm text-muted-foreground">
+                Rule of thumb: about the square root of the number of ideas you expect (e.g. 25 ideas → 5 votes).
+              </p>
+            </fieldset>
+          )}
+
+          <fieldset className="grid gap-2 sm:col-span-2">
+            <legend className="sr-only">Check-in</legend>
+            <label className="flex cursor-pointer items-start gap-2.5 text-sm has-disabled:cursor-default has-disabled:opacity-70">
+              <input
+                type="checkbox"
+                className="mt-0.5 accent-primary"
+                checked={checkIn && enabled.includes("intro")}
+                disabled={!enabled.includes("intro")}
+                onChange={(e) => setCheckIn(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">Start with a check-in question</span>
+                <span className="block text-muted-foreground">
+                  {enabled.includes("intro")
+                    ? "A short icebreaker everyone answers during Intro. It can be changed on the retro page."
+                    : "Needs the Intro & Pulse phase."}
+                </span>
+              </span>
+            </label>
+            {checkIn && enabled.includes("intro") && (
+              <div className="grid gap-2 pl-6">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input type="radio" name="checkin" className="accent-primary" checked={ownQuestion === null} onChange={() => setOwnQuestion(null)} />
+                  A random question from the catalog
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input type="radio" name="checkin" className="accent-primary" checked={ownQuestion !== null} onChange={() => setOwnQuestion("")} />
+                  My own question
+                </label>
+                {ownQuestion !== null && (
+                  <Input
+                    aria-label="Check-in question"
+                    placeholder="e.g. One word for the last sprint?"
+                    maxLength={ICEBREAKER_MAX_LENGTH}
+                    value={ownQuestion}
+                    onChange={(e) => setOwnQuestion(e.target.value)}
+                  />
+                )}
+              </div>
+            )}
           </fieldset>
 
           <label className="flex cursor-pointer items-start gap-2.5 text-sm sm:col-span-2">

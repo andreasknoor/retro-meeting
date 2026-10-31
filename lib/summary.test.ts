@@ -68,6 +68,13 @@ No ideas.
   });
 });
 
+test("uses the retro's format for the column headings", () => {
+  const md = summaryMarkdown({ ...input, retro: { ...input.retro, template: "start_stop_continue" } });
+  expect(md).toContain("### Start\n");
+  expect(md).toContain("### Stop\n");
+  expect(md).toContain("(from Stop)");
+});
+
 test("summaryFileName", () => {
   expect(summaryFileName("Sprint 42 Retro", "2026-10-28")).toBe("2026-10-28-sprint-42-retro.md");
   expect(summaryFileName("Größe & Ärger!", "2026-10-28")).toBe("2026-10-28-grosse-arger.md");

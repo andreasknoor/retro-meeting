@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { createRetro } from "@/app/actions/retro";
 import { todayIso } from "@/lib/format";
 import { loadRecent } from "@/lib/recentRetros";
+import { ICEBREAKERS } from "@/convex/lib/icebreakers";
 import { NewRetroForm } from "./NewRetroForm";
 
 const push = vi.fn();
@@ -26,6 +27,56 @@ async function fillValidForm() {
   await user.type(screen.getByLabelText("Repeat password *"), "secret1");
   return user;
 }
+
+describe("format, voting and check-in (v1.12)", () => {
+  test("defaults: Keep / Fix / Try, one vote per column, no check-in", async () => {
+    create.mockResolvedValue({ ok: true, slug: "abc123def456" });
+    render(<NewRetroForm />);
+    const user = await fillValidForm();
+    await user.click(screen.getByRole("button", { name: "Create retro" }));
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ template: "keep_fix_try", votesPerPerson: undefined, icebreaker: undefined }),
+    );
+  });
+
+  test("another format, votes to spend freely and an own check-in question", async () => {
+    create.mockResolvedValue({ ok: true, slug: "abc123def456" });
+    render(<NewRetroForm />);
+    const user = await fillValidForm();
+    await user.click(screen.getByRole("button", { name: "Mad / Sad / Glad" }));
+    expect(screen.getByText(/Columns: Mad \(What frustrated you\?\)/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Votes per person")).toBeDisabled();
+    await user.click(screen.getByLabelText(/Votes to spend freely/));
+    await user.clear(screen.getByLabelText("Votes per person"));
+    await user.type(screen.getByLabelText("Votes per person"), "5");
+    await user.click(screen.getByLabelText(/Start with a check-in question/));
+    await user.click(screen.getByLabelText("My own question"));
+    await user.type(screen.getByLabelText("Check-in question"), "Coffee or tea?");
+    await user.click(screen.getByRole("button", { name: "Create retro" }));
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ template: "mad_sad_glad", votesPerPerson: 5, icebreaker: "Coffee or tea?" }),
+    );
+  });
+
+  test("a random check-in question comes from the catalog", async () => {
+    create.mockResolvedValue({ ok: true, slug: "abc123def456" });
+    render(<NewRetroForm />);
+    const user = await fillValidForm();
+    await user.click(screen.getByLabelText(/Start with a check-in question/));
+    await user.click(screen.getByRole("button", { name: "Create retro" }));
+    expect(ICEBREAKERS).toContain(create.mock.calls[0][0].icebreaker);
+  });
+
+  test("check-in needs the Intro phase; voting options need the Vote phase", async () => {
+    const user = userEvent.setup();
+    render(<NewRetroForm />);
+    await user.click(screen.getByLabelText("Intro & Pulse"));
+    expect(screen.getByLabelText(/Start with a check-in question/)).toBeDisabled();
+    expect(screen.getByText("Needs the Intro & Pulse phase.")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Vote"));
+    expect(screen.queryByLabelText("Votes per person")).not.toBeInTheDocument();
+  });
+});
 
 describe("NewRetroForm", () => {
   test("shows the calculated agenda and updates it with length and phases", async () => {

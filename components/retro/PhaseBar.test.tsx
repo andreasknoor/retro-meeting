@@ -40,6 +40,9 @@ const base: Retro = {
   phaseDurationSec: null,
   pausedRemainingSec: null,
   adminControlsPhases: false,
+  template: "keep_fix_try",
+  votesPerPerson: null,
+  icebreaker: null,
 };
 
 const timer = () => screen.getByRole("timer");

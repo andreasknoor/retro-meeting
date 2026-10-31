@@ -32,16 +32,16 @@ export function saveInitials(initials: string): void {
 type Votable = { id: string; column: string; votedByMe: boolean };
 
 /**
- * Mirrors votes.toggle for optimistic updates: cast, move within the column, or take back.
- * Only `votedByMe` changes; counts are hidden while voting (v1.7).
+ * Mirrors votes.toggle for optimistic updates: cast, move within the column (only with one vote
+ * per column), or take back. Only `votedByMe` changes; counts are hidden while voting (v1.7).
  */
-export function applyVoteToggle<T extends Votable>(ideas: readonly T[], ideaId: string): T[] {
+export function applyVoteToggle<T extends Votable>(ideas: readonly T[], ideaId: string, perColumn = true): T[] {
   const target = ideas.find((i) => i.id === ideaId);
   if (!target) return [...ideas];
   const retract = target.votedByMe;
   return ideas.map((i) => {
     if (i.id === ideaId) return { ...i, votedByMe: !retract };
-    if (!retract && i.column === target.column && i.votedByMe) return { ...i, votedByMe: false };
+    if (perColumn && !retract && i.column === target.column && i.votedByMe) return { ...i, votedByMe: false };
     return i;
   });
 }

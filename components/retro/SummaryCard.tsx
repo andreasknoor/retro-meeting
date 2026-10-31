@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
-import { COLUMN_META, COLUMNS } from "@/convex/lib/columns";
+import { columnMeta, COLUMNS } from "@/convex/lib/columns";
 import { formatDueDate } from "@/lib/format";
 import { sortIdeas } from "@/lib/ideas";
 import { summaryFileName, summaryMarkdown } from "@/lib/summary";
@@ -23,7 +23,14 @@ export function SummaryCard({ retro, participantId }: { retro: Retro; participan
   if (ideas === undefined || actions === undefined || (hasPulse && pulse === undefined)) return null;
 
   const markdown = summaryMarkdown({
-    retro: { name: retro.name, subtitle: retro.subtitle, date: retro.date, facilitator: retro.facilitator, votingOn },
+    retro: {
+      name: retro.name,
+      subtitle: retro.subtitle,
+      date: retro.date,
+      facilitator: retro.facilitator,
+      votingOn,
+      template: retro.template,
+    },
     pulse: hasPulse && pulse ? pulse : null,
     ideas,
     actions: actions.map((a) => ({ ...a, ideaColumn: a.idea?.column ?? null })),
@@ -85,7 +92,7 @@ export function SummaryCard({ retro, participantId }: { retro: Retro; participan
               ).slice(0, 3);
               return (
                 <li key={column}>
-                  <span className="font-semibold">{COLUMN_META[column].label}:</span>{" "}
+                  <span className="font-semibold">{columnMeta(retro.template)[column].label}:</span>{" "}
                   {top.length === 0
                     ? "–"
                     : top.map((i) => (votingOn ? `${i.text} (${i.voteCount})` : i.text)).join(" · ")}

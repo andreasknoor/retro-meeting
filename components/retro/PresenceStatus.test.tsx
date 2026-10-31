@@ -41,4 +41,11 @@ describe("PresenceStatus", () => {
     rerender(<PresenceStatus retro={{ ...retro, state: "vote" }} participantId="alice-0000" />);
     expect(screen.getByLabelText("Participants")).toHaveTextContent("4 online· 2 have voted");
   });
+
+  test("shows how many have added ideas during Brainstorm, without names", () => {
+    vi.mocked(useOnlineCount).mockReturnValue(5);
+    mockQueries({ "ideas:contributorCount": 3 });
+    render(<PresenceStatus retro={retro} participantId="alice-0000" />);
+    expect(screen.getByLabelText("Participants")).toHaveTextContent("5 online· 3 have added ideas");
+  });
 });

@@ -258,3 +258,36 @@ test("clock.now returns the server time", async () => {
   const t = newTest(modules);
   expect(await t.action(api.clock.now, {})).toBe(T0);
 });
+
+describe("phase.setIcebreaker", () => {
+  async function withIcebreaker(adminControlsPhases = false) {
+    const s = await setup();
+    await s.t.run(async (ctx) => {
+      const retro = (await ctx.db.query("retros").first())!;
+      await ctx.db.patch("retros", retro._id, { icebreaker: "Coffee or tea?", adminControlsPhases });
+    });
+    return s;
+  }
+
+  test("changes the question for everyone until the Intro phase is over", async () => {
+    const { t, slug, get } = await withIcebreaker();
+    await t.mutation(api.phase.setIcebreaker, { slug, question: "  One word for the sprint? " });
+    expect((await get()).icebreaker).toBe("One word for the sprint?");
+    await t.mutation(api.phase.startNext, { slug, from: "not_started" });
+    await t.mutation(api.phase.setIcebreaker, { slug, question: "Battery level?" });
+    await t.mutation(api.phase.startNext, { slug, from: "intro" });
+    await expect(t.mutation(api.phase.setIcebreaker, { slug, question: "Too late?" })).rejects.toThrow("The check-in is over.");
+    expect((await get()).icebreaker).toBe("Battery level?");
+  });
+
+  test("checks the question, the permission and that the retro has a check-in", async () => {
+    const { t, slug } = await withIcebreaker(true);
+    await expect(t.mutation(api.phase.setIcebreaker, { slug, question: "Mine?" })).rejects.toThrow("Only the admin can switch phases.");
+    const other = await setup();
+    await expect(other.t.mutation(api.phase.setIcebreaker, { slug: other.slug, question: "Hi?" })).rejects.toThrow(
+      "This retro has no check-in question.",
+    );
+    const open = await withIcebreaker(false);
+    await expect(open.t.mutation(api.phase.setIcebreaker, { slug: open.slug, question: " " })).rejects.toThrow("The check-in question is empty.");
+  });
+});

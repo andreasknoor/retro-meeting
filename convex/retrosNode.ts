@@ -8,7 +8,7 @@ import { action } from "./_generated/server";
 import { newSession } from "./adminNode";
 import { enforce } from "./lib/rateLimits";
 import { validateRetroInput } from "./lib/validation";
-import { phaseValidator } from "./schema";
+import { phaseValidator, templateValidator } from "./schema";
 
 const scryptAsync = promisify(scrypt) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
 
@@ -43,6 +43,9 @@ export const create = action({
     password: v.string(),
     /** Only the admin may switch phases; default on (decision after v0.10). */
     adminControlsPhases: v.optional(v.boolean()),
+    template: v.optional(templateValidator),
+    votesPerPerson: v.optional(v.number()),
+    icebreaker: v.optional(v.string()),
   },
   /** The creator knows the password, so they get an admin session right away (auto-login). */
   returns: v.object({ slug: v.string(), token: v.string(), expiresAt: v.number() }),
@@ -69,6 +72,9 @@ export const create = action({
         passwordHash,
         passwordSalt: salt.toString("hex"),
         adminControlsPhases: args.adminControlsPhases ?? true,
+        template: args.template,
+        votesPerPerson: args.votesPerPerson,
+        icebreaker: args.icebreaker?.trim(),
         session: { tokenHash, expiresAt },
       });
       if (inserted) return { slug, token, expiresAt };

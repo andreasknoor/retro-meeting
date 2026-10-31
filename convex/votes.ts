@@ -20,7 +20,9 @@ export const voterCount = query({
 });
 
 /**
- * One vote per participant per column (decision A.2), only during the Vote phase.
+ * One vote per participant per column (decision A.2), only during the Vote phase. Retros with
+ * `votesPerPerson` (v1.12) instead give that many votes to spend freely, at most one per idea;
+ * there a vote is cast or taken back, never moved.
  * Voting for the idea you already voted for takes the vote back; voting for another idea in
  * the same column moves it. Only the caller's own vote row is read and written, so people voting
  * at the same time never conflict (counts are computed in ideas.list).
@@ -36,6 +38,24 @@ export const toggle = mutation({
     const retro = await ctx.db.get("retros", idea.retroId);
     if (retro?.state !== "vote") throw new ConvexError("Voting is only possible during the Vote phase.");
     await enforce(ctx, "participantWrites", participantId);
+
+    if (retro.votesPerPerson !== undefined) {
+      // Only the caller's own votes (at most votesPerPerson rows), so voters never conflict.
+      const mine = await ctx.db
+        .query("votes")
+        .withIndex("by_retroId_and_participantId_and_column", (q) =>
+          q.eq("retroId", idea.retroId).eq("participantId", participantId),
+        )
+        .take(retro.votesPerPerson + 1);
+      const onThisIdea = mine.find((vote) => vote.ideaId === ideaId);
+      if (onThisIdea) {
+        await ctx.db.delete("votes", onThisIdea._id);
+        return "retracted";
+      }
+      if (mine.length >= retro.votesPerPerson) throw new ConvexError("No votes left. Take one back first.");
+      await ctx.db.insert("votes", { retroId: idea.retroId, ideaId, column: idea.column, participantId });
+      return "cast";
+    }
 
     const existing = await ctx.db
       .query("votes")

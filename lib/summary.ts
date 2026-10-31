@@ -1,11 +1,19 @@
 // The retro's result as Markdown (backlog 9): copied, downloaded or printed from the summary card.
-import { COLUMN_META, COLUMNS, type Column } from "@/convex/lib/columns";
+import { type Column, columnMeta, COLUMNS, type Template } from "@/convex/lib/columns";
 import { SCORE_LABELS, type Score } from "@/convex/lib/pulse";
 import { formatDueDate, formatLongDate } from "./format";
 import { sortIdeas } from "./ideas";
 
 export type SummaryInput = {
-  retro: { name: string; subtitle: string | null; date: string; facilitator: string; votingOn: boolean };
+  retro: {
+    name: string;
+    subtitle: string | null;
+    date: string;
+    facilitator: string;
+    votingOn: boolean;
+    /** Missing = Keep / Fix / Try. */
+    template?: Template;
+  };
   /** null when the retro has no pulse check. */
   pulse: { counts: number[]; total: number; average: number | null } | null;
   ideas: { column: Column; text: string; voteCount: number; createdAt: number }[];
@@ -18,6 +26,7 @@ function escapeInline(text: string): string {
 }
 
 export function summaryMarkdown({ retro, pulse, ideas, actions }: SummaryInput): string {
+  const meta = columnMeta(retro.template);
   const lines: string[] = [`# ${escapeInline(retro.name)}`, ""];
   if (retro.subtitle) lines.push(`_${escapeInline(retro.subtitle)}_`, "");
   lines.push(`${formatLongDate(retro.date)} · Facilitator: ${escapeInline(retro.facilitator)}`, "");
@@ -39,7 +48,7 @@ export function summaryMarkdown({ retro, pulse, ideas, actions }: SummaryInput):
       ideas.filter((i) => i.column === column),
       retro.votingOn,
     );
-    lines.push(`### ${COLUMN_META[column].label}`, "");
+    lines.push(`### ${meta[column].label}`, "");
     if (sorted.length === 0) lines.push("No ideas.");
     for (const idea of sorted) {
       const votes = retro.votingOn ? ` (${idea.voteCount} ${idea.voteCount === 1 ? "vote" : "votes"})` : "";
@@ -52,7 +61,7 @@ export function summaryMarkdown({ retro, pulse, ideas, actions }: SummaryInput):
   if (actions.length === 0) lines.push("No actions.");
   for (const a of actions) {
     const due = a.dueDate ? `, due ${formatDueDate(a.dueDate)}` : "";
-    const from = a.ideaColumn ? ` (from ${COLUMN_META[a.ideaColumn].label})` : "";
+    const from = a.ideaColumn ? ` (from ${meta[a.ideaColumn].label})` : "";
     lines.push(`- [${a.done ? "x" : " "}] ${escapeInline(a.text)}${from} — ${escapeInline(a.owner)}${due}`);
   }
   return `${lines.join("\n").trimEnd()}\n`;

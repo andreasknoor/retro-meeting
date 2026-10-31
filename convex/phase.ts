@@ -4,6 +4,7 @@ import { mutation, type MutationCtx } from "./_generated/server";
 import { adminRetro } from "./lib/adminAuth";
 import { IDEA_LIMITS } from "./lib/columns";
 import { backDiscardsVotes, nextState, previousPhase } from "./lib/phases";
+import { icebreakerProblem } from "./lib/validation";
 import { getRetroOrThrow } from "./lib/retroAccess";
 import { stateValidator } from "./schema";
 
@@ -12,7 +13,7 @@ import { stateValidator } from "./schema";
 // Every mutation takes the state the caller saw (`from`); if someone else switched first, the
 // click is ignored instead of skipping a phase.
 
-async function controllableRetro(ctx: MutationCtx, slug: string, token: string | undefined): Promise<Doc<"retros">> {
+export async function controllableRetro(ctx: MutationCtx, slug: string, token: string | undefined): Promise<Doc<"retros">> {
   const retro = await getRetroOrThrow(ctx, slug);
   if (retro.adminControlsPhases && !(await adminRetro(ctx, slug, token ?? "", Date.now()))) {
     throw new ConvexError("Only the admin can switch phases.");
@@ -145,6 +146,24 @@ export const reset = mutation({
       phaseDurationSec: undefined,
       pausedRemainingSec: undefined,
     });
+    return null;
+  },
+});
+
+/**
+ * "Another question" / own question for the check-in (backlog 9), by whoever may switch phases.
+ * Only for retros created with a check-in question, and only until the Intro phase is over.
+ */
+export const setIcebreaker = mutation({
+  args: { slug: v.string(), question: v.string(), token: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { slug, question, token }) => {
+    const retro = await controllableRetro(ctx, slug, token);
+    if (retro.icebreaker === undefined) throw new ConvexError("This retro has no check-in question.");
+    if (retro.state !== "not_started" && retro.state !== "intro") throw new ConvexError("The check-in is over.");
+    const problem = icebreakerProblem(question);
+    if (problem) throw new ConvexError(problem);
+    await ctx.db.patch("retros", retro._id, { icebreaker: question.trim() });
     return null;
   },
 });

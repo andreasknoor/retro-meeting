@@ -100,3 +100,13 @@ test("a finished retro is read-only for ideas, except for the admin", async () =
   await expect(t.mutation(api.ideas.remove, { ideaId, participantId: ALICE })).rejects.toThrow("The retro is finished.");
   expect(await t.query(api.ideas.list, { slug, participantId: ALICE })).toHaveLength(1);
 });
+
+test("contributorCount counts people, not ideas", async () => {
+  const { t, slug, add } = await setup();
+  expect(await t.query(api.ideas.contributorCount, { slug })).toBe(0);
+  await add(ALICE, "keep", "One");
+  await add(ALICE, "fix", "Two");
+  await add(BOB, "try", "Three");
+  expect(await t.query(api.ideas.contributorCount, { slug })).toBe(2);
+  expect(await t.query(api.ideas.contributorCount, { slug: "missing1" })).toBe(0);
+});

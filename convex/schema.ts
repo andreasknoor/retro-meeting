@@ -19,6 +19,12 @@ export const stateValidator = v.union(
 
 export const columnValidator = v.union(v.literal("keep"), v.literal("fix"), v.literal("try"));
 
+export const templateValidator = v.union(
+  v.literal("keep_fix_try"),
+  v.literal("start_stop_continue"),
+  v.literal("mad_sad_glad"),
+);
+
 export const agendaValidator = v.object({
   intro: v.number(),
   brainstorm: v.number(),
@@ -45,6 +51,11 @@ export default defineSchema({
     adminControlsPhases: v.optional(v.boolean()),
     passwordHash: v.string(),
     passwordSalt: v.string(),
+    // v1.12, all set when the retro is created. Missing = Keep / Fix / Try, 1 vote per column,
+    // no check-in question.
+    template: v.optional(templateValidator),
+    votesPerPerson: v.optional(v.number()), // votes to spend freely, at most one per idea
+    icebreaker: v.optional(v.string()),
   }).index("by_slug", ["slug"]),
 
   pulseAnswers: defineTable({

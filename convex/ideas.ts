@@ -73,6 +73,21 @@ export const list = query({
   },
 });
 
+/** How many people have added at least one idea (backlog 12); no per-participant args, so everyone shares it. */
+export const contributorCount = query({
+  args: { slug: v.string() },
+  returns: v.number(),
+  handler: async (ctx, { slug }) => {
+    const retro = await findRetro(ctx, slug);
+    if (!retro) return 0;
+    const ideas = await ctx.db
+      .query("ideas")
+      .withIndex("by_retroId", (q) => q.eq("retroId", retro._id))
+      .take(MAX_IDEAS);
+    return new Set(ideas.map((idea) => idea.authorId)).size;
+  },
+});
+
 /** Ideas can be added in every phase (§4.5 default) until the retro is finished (v1.7). */
 export const add = mutation({
   args: {

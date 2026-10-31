@@ -1,4 +1,6 @@
 import { LENGTH_PRESETS, type Phase } from "./agenda";
+import { FREE_VOTES } from "./columns";
+import { ICEBREAKER_MAX_LENGTH } from "./icebreakers";
 
 export const LIMITS = {
   name: 80,
@@ -21,7 +23,19 @@ export type RetroInput = {
   facilitator: string;
   enabledPhases: Phase[];
   password: string;
+  /** Votes to spend freely; undefined = one per column. */
+  votesPerPerson?: number;
+  /** Check-in question; undefined = none. Needs the Intro phase. */
+  icebreaker?: string;
 };
+
+/** Problems with a check-in question; also used when it is changed later. */
+export function icebreakerProblem(question: string): string | null {
+  const q = question.trim();
+  if (!q) return "The check-in question is empty.";
+  if (q.length > ICEBREAKER_MAX_LENGTH) return `The check-in question can have at most ${ICEBREAKER_MAX_LENGTH} characters.`;
+  return null;
+}
 
 export function isIsoDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -46,6 +60,14 @@ export function validateRetroInput(input: RetroInput): string[] {
   else if (facilitator.length > LIMITS.facilitator)
     errors.push(`Facilitator can have at most ${LIMITS.facilitator} characters.`);
   if (!input.enabledPhases.includes("brainstorm")) errors.push("The Brainstorm phase is required.");
+  const votes = input.votesPerPerson;
+  if (votes !== undefined && (!Number.isInteger(votes) || votes < FREE_VOTES.min || votes > FREE_VOTES.max))
+    errors.push(`Votes per person must be between ${FREE_VOTES.min} and ${FREE_VOTES.max}.`);
+  if (input.icebreaker !== undefined) {
+    const problem = icebreakerProblem(input.icebreaker);
+    if (problem) errors.push(problem);
+    else if (!input.enabledPhases.includes("intro")) errors.push("A check-in question needs the Intro & Pulse phase.");
+  }
   if (input.password.length < LIMITS.passwordMin)
     errors.push(`Password needs at least ${LIMITS.passwordMin} characters.`);
   else if (input.password.length > LIMITS.passwordMax) errors.push("Password is too long.");

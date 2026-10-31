@@ -22,6 +22,8 @@ const retro = {
   slug: "k7f3q9xa",
   state: "brainstorm",
   enabledPhases: ["intro", "brainstorm", "vote", "discuss"],
+  template: "keep_fix_try",
+  votesPerPerson: null,
 } as Retro;
 
 const idea = (id: string, column: Idea["column"], text: string, extra: Partial<Idea> = {}): Idea =>
@@ -377,4 +379,37 @@ test("vote buttons are a call to action where the column's vote is still free", 
   expect(button("Keep", "Pairing")).toHaveClass("bg-secondary", "border-primary");
   expect(button("Keep", "Short stand-ups")).toHaveClass("bg-background");
   expect(button("Keep", "Short stand-ups")).not.toHaveClass("bg-primary");
+});
+
+describe("formats and votes to spend freely (v1.12)", () => {
+  test("columns use the retro's format", () => {
+    render(<IdeaBoard retro={{ ...retro, template: "start_stop_continue" }} participantId="me-000000" onMakeAction={makeAction} />);
+    expect(screen.getByRole("region", { name: "Start" })).toHaveTextContent("What should we start doing?");
+    expect(screen.getByRole("region", { name: "Stop" })).toBeInTheDocument();
+    expect(screen.getByLabelText("New idea for Continue")).toBeInTheDocument();
+  });
+
+  test("shows the free budget, keeps the call to action while votes are left, and stops at zero", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<IdeaBoard retro={{ ...retro, state: "vote", votesPerPerson: 3 }} participantId="me-000000" onMakeAction={makeAction} />);
+    expect(screen.getByLabelText("Votes left")).toHaveTextContent("2 of 3 votes left");
+    expect(screen.getByText(/3 votes to spend freely, at most one per idea/)).toBeInTheDocument();
+    // Another vote in the same column is still possible.
+    const shortStandups = within(screen.getByRole("region", { name: "Keep" })).getAllByRole("listitem")[0].querySelector("button")!;
+    expect(shortStandups).toHaveClass("bg-primary");
+
+    rerender(<IdeaBoard retro={{ ...retro, state: "vote", votesPerPerson: 1 }} participantId="me-000000" onMakeAction={makeAction} />);
+    expect(screen.getByLabelText("Votes left")).toHaveTextContent("0 of 1 vote left");
+    await user.click(within(screen.getByRole("region", { name: "Fix" })).getByRole("button", { name: "+ Vote" }));
+    expect(toast.error).toHaveBeenCalledWith("No votes left. Take one back first.");
+    expect(toggle).not.toHaveBeenCalled();
+  });
+
+  test("the optimistic update never moves a free vote", () => {
+    render(<IdeaBoard retro={{ ...retro, state: "vote", votesPerPerson: 3 }} participantId="me-000000" onMakeAction={makeAction} />);
+    const store = { getQuery: vi.fn(() => IDEAS), setQuery: vi.fn() };
+    optimisticVote(store, { ideaId: "i1", participantId: "me-000000" });
+    const next = store.setQuery.mock.calls[0][2] as Idea[];
+    expect(next.map((i) => [i.id, i.votedByMe])).toEqual([["i1", true], ["i2", true], ["i3", false]]);
+  });
 });

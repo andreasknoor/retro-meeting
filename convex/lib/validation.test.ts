@@ -28,6 +28,12 @@ describe("validateRetroInput", () => {
     ["no brainstorm", { enabledPhases: ["intro", "vote"] }, "The Brainstorm phase is required."],
     ["short password", { password: "12345" }, "Password needs at least 6 characters."],
     ["huge password", { password: "x".repeat(201) }, "Password is too long."],
+    ["no votes", { votesPerPerson: 0 }, "Votes per person must be between 1 and 10."],
+    ["too many votes", { votesPerPerson: 11 }, "Votes per person must be between 1 and 10."],
+    ["half a vote", { votesPerPerson: 2.5 }, "Votes per person must be between 1 and 10."],
+    ["empty check-in", { icebreaker: "  " }, "The check-in question is empty."],
+    ["long check-in", { icebreaker: "x".repeat(201) }, "The check-in question can have at most 200 characters."],
+    ["check-in without Intro", { icebreaker: "Hi?", enabledPhases: ["brainstorm"] }, "A check-in question needs the Intro & Pulse phase."],
   ])("rejects %s", (_, patch, message) => {
     expect(validateRetroInput({ ...valid, ...patch })).toContain(message);
   });

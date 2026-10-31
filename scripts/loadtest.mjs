@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Load test: one complete retro with N simulated participants against a Convex deployment.
 //
-//   node scripts/loadtest.mjs [participants=30]
+//   node scripts/loadtest.mjs [participants=30] [free]
+//
+// "free" creates the retro with 3 votes to spend freely instead of one per column (v1.12).
 //
 // Uses NEXT_PUBLIC_CONVEX_URL from .env.local (the dev deployment). Never point it at
 // production: it creates and deletes a retro there.
@@ -11,6 +13,7 @@ import { anyApi } from "convex/server";
 
 const api = anyApi;
 const N = Number(process.argv[2] ?? 30);
+const FREE_VOTES = process.argv[3] === "free";
 const url =
   process.env.CONVEX_URL ??
   readFileSync(".env.local", "utf8").match(/^NEXT_PUBLIC_CONVEX_URL=(.+)$/m)?.[1].replace(/["']/g, "");
@@ -33,8 +36,9 @@ const { slug, token } = await admin.action(api.retrosNode.create, {
   facilitator: "Load test",
   enabledPhases: ["intro", "brainstorm", "vote", "discuss"],
   password: "loadtest-pw",
+  ...(FREE_VOTES && { votesPerPerson: 3 }),
 });
-console.log(`Retro ${slug} created; ${N} participants joining…`);
+console.log(`Retro ${slug} created (${FREE_VOTES ? "3 votes to spend freely" : "one vote per column"}); ${N} participants joining…`);
 
 // Every participant subscribes to what the retro page shows.
 const people = Array.from({ length: N }, (_, i) => {

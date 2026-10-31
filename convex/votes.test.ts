@@ -118,3 +118,32 @@ describe("votes.voterCount", () => {
     expect(await t.query(api.votes.voterCount, { slug: "missing1" })).toBe(0);
   });
 });
+
+describe("votes.toggle with votes to spend freely (v1.12)", () => {
+  async function freeSetup(votesPerPerson: number) {
+    const s = await setup();
+    await s.t.run(async (ctx) => {
+      const retro = (await ctx.db.query("retros").first())!;
+      await ctx.db.patch("retros", retro._id, { votesPerPerson });
+    });
+    return s;
+  }
+
+  test("several votes in one column, at most one per idea, never moved", async () => {
+    const { k1, k2, f1, toggle, view } = await freeSetup(2);
+    expect(await toggle(k1)).toBe("cast");
+    expect(await toggle(k2)).toBe("cast");
+    expect(await view()).toEqual({ K1: [1, true], K2: [1, true], F1: [0, false] });
+    await expect(toggle(f1)).rejects.toThrow("No votes left. Take one back first.");
+    expect(await toggle(k1)).toBe("retracted");
+    expect(await toggle(f1)).toBe("cast");
+    expect(await view()).toEqual({ K1: [0, false], K2: [1, true], F1: [1, true] });
+  });
+
+  test("each person has their own budget", async () => {
+    const { k1, toggle, view } = await freeSetup(1);
+    await toggle(k1);
+    await toggle(k1, BOB);
+    expect((await view()).K1).toEqual([2, true]);
+  });
+});

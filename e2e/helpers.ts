@@ -5,14 +5,37 @@ export const E2E_PASSWORD = "e2e-secret";
 /** Creates a retro through the UI and returns its URL. Names start with "E2E" for cleanup. */
 export async function createRetro(
   page: Page,
-  opts: { name?: string; length?: 30 | 45 | 60 | 90; disable?: string[]; anyoneControlsPhases?: boolean } = {},
+  opts: {
+    name?: string;
+    length?: 30 | 45 | 60 | 90;
+    disable?: string[];
+    anyoneControlsPhases?: boolean;
+    /** Format button label, e.g. "Start / Stop / Continue". */
+    format?: string;
+    /** Votes to spend freely instead of one per column. */
+    freeVotes?: number;
+    /** true = random catalog question, a string = own question. */
+    checkIn?: true | string;
+  } = {},
 ): Promise<string> {
   const name = opts.name ?? `E2E ${Date.now()}`;
   await page.goto("/new");
   await page.getByLabel("Name *").fill(name);
   await page.getByLabel("Facilitator *").fill("Playwright");
   if (opts.length) await page.getByRole("button", { name: `${opts.length} min` }).click();
-  for (const phase of opts.disable ?? []) await page.getByLabel(phase).uncheck();
+  for (const phase of opts.disable ?? []) await page.getByLabel(phase, { exact: true }).uncheck();
+  if (opts.format) await page.getByRole("button", { name: opts.format }).click();
+  if (opts.freeVotes) {
+    await page.getByLabel(/Votes to spend freely/).check();
+    await page.getByLabel("Votes per person").fill(String(opts.freeVotes));
+  }
+  if (opts.checkIn) {
+    await page.getByLabel(/Start with a check-in question/).check();
+    if (typeof opts.checkIn === "string") {
+      await page.getByLabel("My own question").check();
+      await page.getByLabel("Check-in question", { exact: true }).fill(opts.checkIn);
+    }
+  }
   if (opts.anyoneControlsPhases) await page.getByRole("checkbox", { name: /Only the admin can switch phases/ }).uncheck();
   await page.getByLabel(/Admin password/).fill(E2E_PASSWORD);
   await page.getByLabel("Repeat password *").fill(E2E_PASSWORD);
