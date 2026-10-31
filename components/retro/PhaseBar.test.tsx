@@ -34,7 +34,7 @@ const base: Retro = {
   lengthMin: 30,
   facilitator: "Alex",
   enabledPhases: ["intro", "brainstorm", "vote", "discuss"],
-  agenda: { intro: 4, brainstorm: 8, vote: 5, discuss: 13 },
+  agenda: { checkin: 0, intro: 4, brainstorm: 8, vote: 5, discuss: 13 },
   state: "not_started",
   phaseStartedAt: null,
   phaseDurationSec: null,

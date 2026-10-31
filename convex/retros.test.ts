@@ -51,12 +51,14 @@ describe("retros.create", () => {
       ...input,
       template: "mad_sad_glad",
       votesPerPerson: 5,
+      enabledPhases: [...input.enabledPhases, "checkin"],
       icebreaker: "  One word for the sprint? ",
     });
     expect(await t.query(api.retros.getBySlug, { slug: custom.slug })).toMatchObject({
       template: "mad_sad_glad",
       votesPerPerson: 5,
       icebreaker: "One word for the sprint?",
+      enabledPhases: ["checkin", "intro", "brainstorm", "discuss"],
     });
     await expect(t.action(api.retrosNode.create, { ...input, votesPerPerson: 0 })).rejects.toThrow("Votes per person");
   });

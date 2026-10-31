@@ -1,12 +1,17 @@
 import { describe, expect, test } from "vitest";
-import { calcAgenda, LENGTH_PRESETS, orderPhases, PHASES, type Phase } from "./agenda";
+import { calcAgenda, fullAgenda, LENGTH_PRESETS, orderPhases, PHASES, type Phase } from "./agenda";
 
 const ALL = [...PHASES];
+const STANDARD = PHASES.filter((p) => p !== "checkin");
 const total = (a: Record<Phase, number>) => Object.values(a).reduce((s, n) => s + n, 0);
 
 describe("calcAgenda", () => {
-  test("30 minutes with all phases is the template", () => {
-    expect(calcAgenda(30, ALL)).toEqual({ intro: 4, brainstorm: 8, vote: 5, discuss: 13 });
+  test("30 minutes with the four standard phases is the template", () => {
+    expect(calcAgenda(30, STANDARD)).toEqual({ checkin: 0, intro: 4, brainstorm: 8, vote: 5, discuss: 13 });
+  });
+
+  test("the Check-in phase takes its 3 minutes proportionally from the others", () => {
+    expect(calcAgenda(30, ALL)).toEqual({ checkin: 3, intro: 4, brainstorm: 7, vote: 5, discuss: 11 });
   });
 
   test.each(LENGTH_PRESETS)("%i minutes always add up exactly", (len) => {
@@ -14,7 +19,7 @@ describe("calcAgenda", () => {
   });
 
   test("scales proportionally for 60 minutes", () => {
-    expect(calcAgenda(60, ALL)).toEqual({ intro: 8, brainstorm: 16, vote: 10, discuss: 26 });
+    expect(calcAgenda(60, STANDARD)).toEqual({ checkin: 0, intro: 8, brainstorm: 16, vote: 10, discuss: 26 });
   });
 
   test("redistributes the time of disabled phases", () => {
@@ -44,4 +49,9 @@ describe("orderPhases", () => {
       "discuss",
     ]);
   });
+});
+
+test("fullAgenda fills in the check-in time of retros created before v1.13", () => {
+  expect(fullAgenda({ intro: 4, brainstorm: 8, vote: 5, discuss: 13 })).toEqual({ checkin: 0, intro: 4, brainstorm: 8, vote: 5, discuss: 13 });
+  expect(fullAgenda({ checkin: 3, intro: 4, brainstorm: 7, vote: 5, discuss: 11 }).checkin).toBe(3);
 });

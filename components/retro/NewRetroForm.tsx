@@ -29,15 +29,18 @@ export function NewRetroForm() {
   const date = pickedDate ?? today;
   const [facilitator, setFacilitator] = useState("");
   const [lengthMin, setLengthMin] = useState<number>(30);
-  const [enabled, setEnabled] = useState<Phase[]>([...PHASES]);
+  // The Check-in phase is optional and off by default (v1.13).
+  const [enabled, setEnabled] = useState<Phase[]>(PHASES.filter((p) => p !== "checkin"));
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [adminControlsPhases, setAdminControlsPhases] = useState(true);
   const [template, setTemplate] = useState<Template>("keep_fix_try");
   const [freeVoting, setFreeVoting] = useState(false);
   const [votesPerPerson, setVotesPerPerson] = useState<number>(FREE_VOTES.default);
-  const [checkIn, setCheckIn] = useState(false);
   const [ownQuestion, setOwnQuestion] = useState<string | null>(null);
+  // Drawn when the Check-in phase is ticked (not while rendering, so the prerendered page and the
+  // browser agree), shown in the form and saved exactly as shown.
+  const [randomQuestion, setRandomQuestion] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -45,12 +48,13 @@ export function NewRetroForm() {
   const passwordsMatch = password2.length > 0 && password === password2;
 
   function togglePhase(phase: Phase) {
+    if (phase === "checkin" && randomQuestion === null) setRandomQuestion(randomIcebreaker());
     setEnabled((cur) => (cur.includes(phase) ? cur.filter((p) => p !== phase) : [...cur, phase]));
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const withCheckIn = checkIn && enabled.includes("intro");
+    const withCheckIn = enabled.includes("checkin");
     const input = {
       name,
       subtitle,
@@ -61,7 +65,7 @@ export function NewRetroForm() {
       password,
       votesPerPerson: freeVoting && enabled.includes("vote") ? votesPerPerson : undefined,
       // A random catalog question is drawn here, so the creator could already see it on the page.
-      icebreaker: withCheckIn ? (ownQuestion ?? randomIcebreaker()) : undefined,
+      icebreaker: withCheckIn ? (ownQuestion ?? randomQuestion ?? undefined) : undefined,
     };
     const problems = validateRetroInput(input);
     if (password.length >= LIMITS.passwordMin && password !== password2) problems.push("Passwords do not match.");
@@ -132,6 +136,7 @@ export function NewRetroForm() {
                   <input type="checkbox" className="accent-primary" checked={enabled.includes(phase)} disabled={phase === "brainstorm"} onChange={() => togglePhase(phase)} />
                   {PHASE_LABELS[phase]}
                   {phase === "brainstorm" && <span className="text-muted-foreground">(required)</span>}
+                  {phase === "checkin" && <span className="text-muted-foreground">(optional)</span>}
                 </label>
               ))}
             </div>
@@ -178,47 +183,41 @@ export function NewRetroForm() {
             </fieldset>
           )}
 
-          <fieldset className="grid gap-2 sm:col-span-2">
-            <legend className="sr-only">Check-in</legend>
-            <label className="flex cursor-pointer items-start gap-2.5 text-sm has-disabled:cursor-default has-disabled:opacity-70">
-              <input
-                type="checkbox"
-                className="mt-0.5 accent-primary"
-                checked={checkIn && enabled.includes("intro")}
-                disabled={!enabled.includes("intro")}
-                onChange={(e) => setCheckIn(e.target.checked)}
-              />
-              <span>
-                <span className="font-medium">Start with a check-in question</span>
-                <span className="block text-muted-foreground">
-                  {enabled.includes("intro")
-                    ? "A short icebreaker everyone answers during Intro. It can be changed on the retro page."
-                    : "Needs the Intro & Pulse phase."}
-                </span>
-              </span>
-            </label>
-            {checkIn && enabled.includes("intro") && (
-              <div className="grid gap-2 pl-6">
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input type="radio" name="checkin" className="accent-primary" checked={ownQuestion === null} onChange={() => setOwnQuestion(null)} />
-                  A random question from the catalog
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input type="radio" name="checkin" className="accent-primary" checked={ownQuestion !== null} onChange={() => setOwnQuestion("")} />
-                  My own question
-                </label>
-                {ownQuestion !== null && (
-                  <Input
-                    aria-label="Check-in question"
-                    placeholder="e.g. One word for the last sprint?"
-                    maxLength={ICEBREAKER_MAX_LENGTH}
-                    value={ownQuestion}
-                    onChange={(e) => setOwnQuestion(e.target.value)}
-                  />
-                )}
-              </div>
-            )}
-          </fieldset>
+          {enabled.includes("checkin") && (
+            <fieldset className="grid gap-2 sm:col-span-2">
+              <legend className="mb-2 text-sm font-medium">Check-in question</legend>
+              <p className="text-sm text-muted-foreground">
+                In the Check-in phase everyone writes a short answer. The question can still be changed on the retro page.
+              </p>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input type="radio" name="checkin" className="accent-primary" checked={ownQuestion === null} onChange={() => setOwnQuestion(null)} />
+                A random question from the catalog
+              </label>
+              {ownQuestion === null && randomQuestion && (
+                <div className="ml-6 flex flex-wrap items-center gap-3 rounded-xl border-[1.5px] border-primary/40 bg-secondary/40 px-4 py-3">
+                  <p className="min-w-0 flex-1 text-base font-semibold" aria-label="Drawn check-in question">
+                    {randomQuestion}
+                  </p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setRandomQuestion(randomIcebreaker(randomQuestion))}>
+                    Another question
+                  </Button>
+                </div>
+              )}
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input type="radio" name="checkin" className="accent-primary" checked={ownQuestion !== null} onChange={() => setOwnQuestion("")} />
+                My own question
+              </label>
+              {ownQuestion !== null && (
+                <Input
+                  aria-label="Check-in question"
+                  placeholder="e.g. One word for the last sprint?"
+                  maxLength={ICEBREAKER_MAX_LENGTH}
+                  value={ownQuestion}
+                  onChange={(e) => setOwnQuestion(e.target.value)}
+                />
+              )}
+            </fieldset>
+          )}
 
           <label className="flex cursor-pointer items-start gap-2.5 text-sm sm:col-span-2">
             <input

@@ -76,7 +76,7 @@ describe("admin server actions", () => {
 
   test("admin operations send the cookie token", async () => {
     jar.set(COOKIE, "tok");
-    const agenda = { intro: 3, brainstorm: 10, vote: 5, discuss: 12 };
+    const agenda = { checkin: 0, intro: 3, brainstorm: 10, vote: 5, discuss: 12 };
     expect(await adminSaveAgenda(SLUG, agenda)).toEqual({ ok: true });
     expect(fetchMutation).toHaveBeenLastCalledWith(expect.anything(), { slug: SLUG, token: "tok", agenda });
     expect(await adminDeleteIdea(SLUG, "i1" as never)).toEqual({ ok: true });
@@ -94,7 +94,7 @@ describe("admin server actions", () => {
   test("operations report server errors", async () => {
     vi.mocked(fetchMutation).mockRejectedValue(new ConvexError("Your admin session has expired. Please log in again."));
     const expired = { ok: false, error: "Your admin session has expired. Please log in again." };
-    expect(await adminSaveAgenda(SLUG, { intro: 1, brainstorm: 1, vote: 1, discuss: 1 })).toEqual(expired);
+    expect(await adminSaveAgenda(SLUG, { checkin: 0, intro: 1, brainstorm: 1, vote: 1, discuss: 1 })).toEqual(expired);
     expect(await adminDeleteIdea(SLUG, "i1" as never)).toEqual(expired);
     expect(await adminDeleteRetro(SLUG, "x")).toEqual(expired);
     expect(await adminSaveSettings(SLUG, true)).toEqual(expired);

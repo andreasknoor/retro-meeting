@@ -14,7 +14,7 @@ export async function createRetro(
     format?: string;
     /** Votes to spend freely instead of one per column. */
     freeVotes?: number;
-    /** true = random catalog question, a string = own question. */
+    /** Enables the Check-in phase: true = the drawn catalog question, a string = own question. */
     checkIn?: true | string;
   } = {},
 ): Promise<string> {
@@ -30,7 +30,7 @@ export async function createRetro(
     await page.getByLabel("Votes per person").fill(String(opts.freeVotes));
   }
   if (opts.checkIn) {
-    await page.getByLabel(/Start with a check-in question/).check();
+    await page.getByRole("checkbox", { name: /^Check-in/ }).check();
     if (typeof opts.checkIn === "string") {
       await page.getByLabel("My own question").check();
       await page.getByLabel("Check-in question", { exact: true }).fill(opts.checkIn);

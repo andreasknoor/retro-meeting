@@ -14,6 +14,8 @@ export type SummaryInput = {
     /** Missing = Keep / Fix / Try. */
     template?: Template;
   };
+  /** null / missing when the retro has no Check-in phase. */
+  checkin?: { question: string; answers: { text: string; initials: string | null }[] } | null;
   /** null when the retro has no pulse check. */
   pulse: { counts: number[]; total: number; average: number | null } | null;
   ideas: { column: Column; text: string; voteCount: number; createdAt: number }[];
@@ -25,11 +27,18 @@ function escapeInline(text: string): string {
   return text.replace(/\s*\n\s*/g, " ").replace(/([\\`*_[\]<>#|])/g, "\\$1");
 }
 
-export function summaryMarkdown({ retro, pulse, ideas, actions }: SummaryInput): string {
+export function summaryMarkdown({ retro, checkin, pulse, ideas, actions }: SummaryInput): string {
   const meta = columnMeta(retro.template);
   const lines: string[] = [`# ${escapeInline(retro.name)}`, ""];
   if (retro.subtitle) lines.push(`_${escapeInline(retro.subtitle)}_`, "");
   lines.push(`${formatLongDate(retro.date)} · Facilitator: ${escapeInline(retro.facilitator)}`, "");
+
+  if (checkin) {
+    lines.push("## Check-in", "", `_${escapeInline(checkin.question)}_`, "");
+    if (checkin.answers.length === 0) lines.push("No answers.");
+    for (const a of checkin.answers) lines.push(`- ${escapeInline(a.text)}${a.initials ? ` (${escapeInline(a.initials)})` : ""}`);
+    lines.push("");
+  }
 
   if (pulse) {
     lines.push("## Pulse check", "");

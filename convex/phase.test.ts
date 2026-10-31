@@ -264,18 +264,24 @@ describe("phase.setIcebreaker", () => {
     const s = await setup();
     await s.t.run(async (ctx) => {
       const retro = (await ctx.db.query("retros").first())!;
-      await ctx.db.patch("retros", retro._id, { icebreaker: "Coffee or tea?", adminControlsPhases });
+      await ctx.db.patch("retros", retro._id, {
+        icebreaker: "Coffee or tea?",
+        adminControlsPhases,
+        enabledPhases: ["checkin", "intro", "brainstorm", "vote", "discuss"],
+        agenda: { checkin: 3, intro: 4, brainstorm: 7, vote: 5, discuss: 11 },
+      });
     });
     return s;
   }
 
-  test("changes the question for everyone until the Intro phase is over", async () => {
+  test("changes the question for everyone until the Check-in phase is over", async () => {
     const { t, slug, get } = await withIcebreaker();
     await t.mutation(api.phase.setIcebreaker, { slug, question: "  One word for the sprint? " });
     expect((await get()).icebreaker).toBe("One word for the sprint?");
     await t.mutation(api.phase.startNext, { slug, from: "not_started" });
+    expect((await get()).state).toBe("checkin");
     await t.mutation(api.phase.setIcebreaker, { slug, question: "Battery level?" });
-    await t.mutation(api.phase.startNext, { slug, from: "intro" });
+    await t.mutation(api.phase.startNext, { slug, from: "checkin" });
     await expect(t.mutation(api.phase.setIcebreaker, { slug, question: "Too late?" })).rejects.toThrow("The check-in is over.");
     expect((await get()).icebreaker).toBe("Battery level?");
   });

@@ -75,6 +75,14 @@ test("uses the retro's format for the column headings", () => {
   expect(md).toContain("(from Stop)");
 });
 
+test("lists the check-in question and answers first", () => {
+  const md = summaryMarkdown({
+    ...input,
+    checkin: { question: "Coffee or tea?", answers: [{ text: "Tea", initials: "AK" }, { text: "Coffee", initials: null }] },
+  });
+  expect(md).toContain("## Check-in\n\n_Coffee or tea?_\n\n- Tea (AK)\n- Coffee\n\n## Pulse check");
+});
+
 test("summaryFileName", () => {
   expect(summaryFileName("Sprint 42 Retro", "2026-10-28")).toBe("2026-10-28-sprint-42-retro.md");
   expect(summaryFileName("Größe & Ärger!", "2026-10-28")).toBe("2026-10-28-grosse-arger.md");

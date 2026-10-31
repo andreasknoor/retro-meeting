@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.12** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.13** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -76,7 +76,7 @@ After creation the app redirects to `/r/<slug>` and shows a **"Copy link"** butt
 - The agenda card shows each phase's **start offset** (0:00, 0:04, …) and its duration, and highlights the current phase.
 - **Admin:** only the durations can be edited. The app shows a warning, but does not block saving, if the total differs from the retro length.
 
-**Retro states:** `not_started` → `intro` → `brainstorm` → `vote` → `discuss` → `finished` (disabled phases are skipped).
+**Retro states:** `not_started` → `checkin` (optional, v1.13) → `intro` → `brainstorm` → `vote` → `discuss` → `finished` (disabled phases are skipped).
 
 ### 4.3 Phase bar & timer
 A sticky bar below the header contains:
@@ -440,6 +440,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] v1.10: during the Vote phase, `+ Vote` is a filled call-to-action button (like `Start Vote`) on every card of a column whose vote is still free; once the column's vote is used, the chosen card shows `✓ Voted` (outlined in the primary colour) and the others step back to a neutral outline
 - [x] v1.11: presence counts hidden tabs as online (own heartbeat hook instead of the component's `usePresence`, which disconnected on `visibilitychange`); heartbeat 20 s, offline after ~50 s without one or at once when the tab closes
 - [x] v1.12: set when creating a retro (not changeable later): the **format** (Keep / Fix / Try, Start / Stop / Continue or Mad / Sad / Glad; always three columns with the keys `keep`/`fix`/`try`, only labels and questions change, `columnMeta(template)`), the **voting mode** (one vote per column, or 1–10 votes to spend freely with at most one per idea; `votes.toggle` reads only the caller's own votes) and an optional **check-in question** (needs Intro; random from a catalog of 40 in `convex/lib/icebreakers.ts`, or an own one). The check-in card shows before the start and during Intro; whoever may switch phases can draw another question or write their own (`phase.setIcebreaker`). During Brainstorm the phase bar shows how many have added ideas (`ideas.contributorCount`, no names). Load test with free votes: counts correct
+- [x] v1.13: **Check-in** is its own optional phase before Intro & Pulse (off by default; ticked like the other phases when creating a retro; 3 of 33 template minutes, so 3 min in a 30-minute retro). It needs a question: the form shows the drawn catalog question right away ("Another question" draws again) or takes an own one. During the phase the check-in card is highlighted and everyone writes a short answer (max. 140 characters, optional initials, one per person, changeable); others' answers show once you have answered or the phase is over (`checkin.list` / `checkin.answer`, table `checkinAnswers`). Whoever may switch phases can change the question until the phase is over. The phase bar shows how many have answered; the summary and the Markdown export list question and answers. Agendas stored before v1.13 have no `checkin` minutes (`fullAgenda()` fills in 0). Replaces the v1.12 check-in card that hung off Intro without input
 
 **Total: about 9.5 working days.**
 

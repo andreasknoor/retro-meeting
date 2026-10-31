@@ -16,11 +16,15 @@ import type { Retro } from "./types";
 export function SummaryCard({ retro, participantId }: { retro: Retro; participantId: string }) {
   const { slug } = retro;
   const hasPulse = retro.enabledPhases.includes("intro");
+  const hasCheckin = retro.enabledPhases.includes("checkin");
   const votingOn = retro.enabledPhases.includes("vote");
   const ideas = useQuery(api.ideas.list, { slug, participantId });
   const pulse = useQuery(api.pulse.summary, hasPulse ? { slug, participantId } : "skip");
   const actions = useQuery(api.actions.list, { slug, participantId });
-  if (ideas === undefined || actions === undefined || (hasPulse && pulse === undefined)) return null;
+  const checkin = useQuery(api.checkin.list, hasCheckin ? { slug, participantId } : "skip");
+  if (ideas === undefined || actions === undefined || (hasPulse && pulse === undefined) || (hasCheckin && checkin === undefined)) {
+    return null;
+  }
 
   const markdown = summaryMarkdown({
     retro: {
@@ -31,6 +35,7 @@ export function SummaryCard({ retro, participantId }: { retro: Retro; participan
       votingOn,
       template: retro.template,
     },
+    checkin: checkin?.question ? { question: checkin.question, answers: checkin.answers } : null,
     pulse: hasPulse && pulse ? pulse : null,
     ideas,
     actions: actions.map((a) => ({ ...a, ideaColumn: a.idea?.column ?? null })),
@@ -72,6 +77,14 @@ export function SummaryCard({ retro, participantId }: { retro: Retro; participan
         </CardAction>
       </CardHeader>
       <CardContent className="grid gap-5 md:grid-cols-3">
+        {checkin?.question && (
+          <section aria-label="Check-in result" className="md:col-span-3">
+            <h3 className="mb-1 font-bold">Check-in: {checkin.question}</h3>
+            <p className="text-sm text-muted-foreground">
+              {checkin.answers.length === 0 ? "No answers." : checkin.answers.map((a) => a.text).join(" · ")}
+            </p>
+          </section>
+        )}
         {hasPulse && pulse && (
           <section aria-label="Pulse result">
             <h3 className="mb-1 font-bold">Pulse check</h3>

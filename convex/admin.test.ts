@@ -106,23 +106,23 @@ describe("admin operations", () => {
   test("update agenda times; disabled phases stay 0; validation", async () => {
     const { t, slug, login } = await setup();
     const { token } = await login();
-    await t.mutation(api.admin.updateAgenda, { slug, token, agenda: { intro: 3, brainstorm: 10, vote: 5, discuss: 12 } });
-    expect((await t.query(api.retros.getBySlug, { slug }))!.agenda).toEqual({ intro: 3, brainstorm: 10, vote: 5, discuss: 12 });
+    await t.mutation(api.admin.updateAgenda, { slug, token, agenda: { checkin: 0, intro: 3, brainstorm: 10, vote: 5, discuss: 12 } });
+    expect((await t.query(api.retros.getBySlug, { slug }))!.agenda).toEqual({ checkin: 0, intro: 3, brainstorm: 10, vote: 5, discuss: 12 });
 
     for (const bad of [0, 1.5, 121]) {
       await expect(
-        t.mutation(api.admin.updateAgenda, { slug, token, agenda: { intro: bad, brainstorm: 10, vote: 5, discuss: 12 } }),
+        t.mutation(api.admin.updateAgenda, { slug, token, agenda: { checkin: 0, intro: bad, brainstorm: 10, vote: 5, discuss: 12 } }),
       ).rejects.toThrow("Each phase needs between 1 and 120 whole minutes.");
     }
     await expect(
-      t.mutation(api.admin.updateAgenda, { slug, token: "forged", agenda: { intro: 3, brainstorm: 10, vote: 5, discuss: 12 } }),
+      t.mutation(api.admin.updateAgenda, { slug, token: "forged", agenda: { checkin: 0, intro: 3, brainstorm: 10, vote: 5, discuss: 12 } }),
     ).rejects.toThrow("Your admin session has expired.");
   });
 
   test("changing the running phase's time moves its timer; extensions are kept", async () => {
     const { t, slug, login } = await setup();
     const { token } = await login();
-    const agenda = { intro: 3, brainstorm: 10, vote: 5, discuss: 12 };
+    const agenda = { checkin: 0, intro: 3, brainstorm: 10, vote: 5, discuss: 12 };
     await t.mutation(api.phase.startNext, { slug, from: "not_started", token });
     await t.mutation(api.phase.startNext, { slug, from: "intro", token });
     await t.mutation(api.phase.extend, { slug, from: "brainstorm", token });
@@ -156,8 +156,8 @@ describe("admin operations", () => {
       name: "R", subtitle: "", date: "2026-10-28", lengthMin: 30, facilitator: "F", enabledPhases: ["brainstorm", "discuss"], password: PASSWORD,
     });
     const { token } = await t.action(api.adminNode.login, { slug, password: PASSWORD });
-    await t.mutation(api.admin.updateAgenda, { slug, token, agenda: { intro: 0, brainstorm: 12, vote: 99, discuss: 18 } });
-    expect((await t.query(api.retros.getBySlug, { slug }))!.agenda).toEqual({ intro: 0, brainstorm: 12, vote: 0, discuss: 18 });
+    await t.mutation(api.admin.updateAgenda, { slug, token, agenda: { checkin: 0, intro: 0, brainstorm: 12, vote: 99, discuss: 18 } });
+    expect((await t.query(api.retros.getBySlug, { slug }))!.agenda).toEqual({ checkin: 0, intro: 0, brainstorm: 12, vote: 0, discuss: 18 });
   });
 
   test("admins can delete anyone's idea, but only in their retro", async () => {

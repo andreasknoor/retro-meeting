@@ -13,6 +13,8 @@ export const LIMITS = {
 // `perRetro` bounds every read of a retro's actions; only a flood of made-up participants gets
 // past it, and the list then says so. `perParticipant` is checked per author like ideas, so
 // people adding actions at the same time never read the same rows.
+export const CHECKIN_LIMITS = { answer: 140, perRetro: 300 } as const;
+
 export const ACTION_LIMITS = { text: 200, owner: 60, perRetro: 200, perParticipant: 20 } as const;
 
 export type RetroInput = {
@@ -25,7 +27,7 @@ export type RetroInput = {
   password: string;
   /** Votes to spend freely; undefined = one per column. */
   votesPerPerson?: number;
-  /** Check-in question; undefined = none. Needs the Intro phase. */
+  /** The question for the Check-in phase; required exactly when that phase is enabled. */
   icebreaker?: string;
 };
 
@@ -66,7 +68,9 @@ export function validateRetroInput(input: RetroInput): string[] {
   if (input.icebreaker !== undefined) {
     const problem = icebreakerProblem(input.icebreaker);
     if (problem) errors.push(problem);
-    else if (!input.enabledPhases.includes("intro")) errors.push("A check-in question needs the Intro & Pulse phase.");
+    else if (!input.enabledPhases.includes("checkin")) errors.push("A check-in question needs the Check-in phase.");
+  } else if (input.enabledPhases.includes("checkin")) {
+    errors.push("The Check-in phase needs a question.");
   }
   if (input.password.length < LIMITS.passwordMin)
     errors.push(`Password needs at least ${LIMITS.passwordMin} characters.`);

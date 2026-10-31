@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export const phaseValidator = v.union(
+  v.literal("checkin"),
   v.literal("intro"),
   v.literal("brainstorm"),
   v.literal("vote"),
@@ -10,6 +11,7 @@ export const phaseValidator = v.union(
 
 export const stateValidator = v.union(
   v.literal("not_started"),
+  v.literal("checkin"),
   v.literal("intro"),
   v.literal("brainstorm"),
   v.literal("vote"),
@@ -26,6 +28,16 @@ export const templateValidator = v.union(
 );
 
 export const agendaValidator = v.object({
+  checkin: v.number(),
+  intro: v.number(),
+  brainstorm: v.number(),
+  vote: v.number(),
+  discuss: v.number(),
+});
+
+// Retros created before v1.13 have no check-in time.
+export const storedAgendaValidator = v.object({
+  checkin: v.optional(v.number()),
   intro: v.number(),
   brainstorm: v.number(),
   vote: v.number(),
@@ -41,7 +53,7 @@ export default defineSchema({
     lengthMin: v.number(),
     facilitator: v.string(),
     enabledPhases: v.array(phaseValidator),
-    agenda: agendaValidator, // minutes per phase
+    agenda: storedAgendaValidator, // minutes per phase; see fullAgenda()
     state: stateValidator,
     phaseStartedAt: v.optional(v.number()),
     phaseDurationSec: v.optional(v.number()),
@@ -55,8 +67,16 @@ export default defineSchema({
     // no check-in question.
     template: v.optional(templateValidator),
     votesPerPerson: v.optional(v.number()), // votes to spend freely, at most one per idea
-    icebreaker: v.optional(v.string()),
+    icebreaker: v.optional(v.string()), // the check-in question; set when the Check-in phase is enabled
   }).index("by_slug", ["slug"]),
+
+  // One written check-in answer per participant (v1.13); changeable during the Check-in phase.
+  checkinAnswers: defineTable({
+    retroId: v.id("retros"),
+    participantId: v.string(),
+    text: v.string(),
+    initials: v.optional(v.string()),
+  }).index("by_retroId_and_participantId", ["retroId", "participantId"]),
 
   pulseAnswers: defineTable({
     retroId: v.id("retros"),

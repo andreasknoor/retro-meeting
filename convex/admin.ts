@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { deleteIdea } from "./ideas";
-import { orderPhases } from "./lib/agenda";
+import { fullAgenda, orderPhases } from "./lib/agenda";
 import { adminRetro, LOGIN_WINDOW_MS, loginDelaySec, requireAdmin, sha256Hex } from "./lib/adminAuth";
 import { findRetro } from "./lib/retroAccess";
 import { presence } from "./presence";
@@ -98,7 +98,7 @@ export const updateAgenda = mutation({
   returns: v.null(),
   handler: async (ctx, { slug, token, agenda }) => {
     const retro = await requireAdmin(ctx, slug, token, Date.now());
-    const next = { intro: 0, brainstorm: 0, vote: 0, discuss: 0 };
+    const next = { checkin: 0, intro: 0, brainstorm: 0, vote: 0, discuss: 0 };
     for (const phase of orderPhases(retro.enabledPhases)) {
       const minutes = agenda[phase];
       if (!Number.isInteger(minutes) || minutes < 1 || minutes > MAX_PHASE_MINUTES) {
@@ -108,7 +108,7 @@ export const updateAgenda = mutation({
     }
     const state = retro.state;
     const inPhase = state !== "not_started" && state !== "finished";
-    const deltaSec = inPhase ? (next[state] - retro.agenda[state]) * 60 : 0;
+    const deltaSec = inPhase ? (next[state] - fullAgenda(retro.agenda)[state]) * 60 : 0;
     await ctx.db.patch("retros", retro._id, {
       agenda: next,
       ...(inPhase && retro.phaseDurationSec !== undefined && {
@@ -180,11 +180,12 @@ export const purgeRetroData = internalMutation({
   args: { retroId: v.id("retros") },
   returns: v.null(),
   handler: async (ctx, { retroId }) => {
-    const batches: { _id: Id<"pulseAnswers" | "ideas" | "votes" | "actions" | "adminSessions" | "loginAttempts"> }[][] = [
+    const batches: { _id: Id<"pulseAnswers" | "checkinAnswers" | "ideas" | "votes" | "actions" | "adminSessions" | "loginAttempts"> }[][] = [
       await ctx.db.query("votes").withIndex("by_retroId_and_participantId_and_column", (q) => q.eq("retroId", retroId)).take(PURGE_BATCH),
       await ctx.db.query("actions").withIndex("by_retroId", (q) => q.eq("retroId", retroId)).take(PURGE_BATCH),
       await ctx.db.query("ideas").withIndex("by_retroId", (q) => q.eq("retroId", retroId)).take(PURGE_BATCH),
       await ctx.db.query("pulseAnswers").withIndex("by_retroId_and_participantId", (q) => q.eq("retroId", retroId)).take(PURGE_BATCH),
+      await ctx.db.query("checkinAnswers").withIndex("by_retroId_and_participantId", (q) => q.eq("retroId", retroId)).take(PURGE_BATCH),
       await ctx.db.query("adminSessions").withIndex("by_retroId", (q) => q.eq("retroId", retroId)).take(PURGE_BATCH),
       await ctx.db.query("loginAttempts").withIndex("by_retroId_and_at", (q) => q.eq("retroId", retroId)).take(PURGE_BATCH),
     ];

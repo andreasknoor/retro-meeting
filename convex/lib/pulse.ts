@@ -19,7 +19,7 @@ export type PulseSummary = {
 
 /** Results show once you have answered, or when the retro has moved past the Intro phase. */
 export function resultsVisible(state: RetroState, mine: number | null): boolean {
-  return mine !== null || (state !== "not_started" && state !== "intro");
+  return mine !== null || (state !== "not_started" && state !== "checkin" && state !== "intro");
 }
 
 export function isScore(n: number): n is Score {

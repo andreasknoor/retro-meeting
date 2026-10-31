@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, type MutationCtx } from "./_generated/server";
 import { adminRetro } from "./lib/adminAuth";
+import { fullAgenda } from "./lib/agenda";
 import { IDEA_LIMITS } from "./lib/columns";
 import { backDiscardsVotes, nextState, previousPhase } from "./lib/phases";
 import { icebreakerProblem } from "./lib/validation";
@@ -35,7 +36,7 @@ async function discardAllVotes(ctx: MutationCtx, retroId: Id<"retros">, confirme
 const startPhase = (retro: Doc<"retros">, phase: keyof Doc<"retros">["agenda"]) => ({
   state: phase,
   phaseStartedAt: Date.now(),
-  phaseDurationSec: retro.agenda[phase] * 60,
+  phaseDurationSec: fullAgenda(retro.agenda)[phase] * 60,
   pausedRemainingSec: undefined,
 });
 
@@ -152,7 +153,7 @@ export const reset = mutation({
 
 /**
  * "Another question" / own question for the check-in (backlog 9), by whoever may switch phases.
- * Only for retros created with a check-in question, and only until the Intro phase is over.
+ * Only for retros with the Check-in phase, and only until it is over.
  */
 export const setIcebreaker = mutation({
   args: { slug: v.string(), question: v.string(), token: v.optional(v.string()) },
@@ -160,7 +161,7 @@ export const setIcebreaker = mutation({
   handler: async (ctx, { slug, question, token }) => {
     const retro = await controllableRetro(ctx, slug, token);
     if (retro.icebreaker === undefined) throw new ConvexError("This retro has no check-in question.");
-    if (retro.state !== "not_started" && retro.state !== "intro") throw new ConvexError("The check-in is over.");
+    if (retro.state !== "not_started" && retro.state !== "checkin") throw new ConvexError("The check-in is over.");
     const problem = icebreakerProblem(question);
     if (problem) throw new ConvexError(problem);
     await ctx.db.patch("retros", retro._id, { icebreaker: question.trim() });

@@ -28,15 +28,17 @@ async function fillValidForm() {
   return user;
 }
 
-describe("format, voting and check-in (v1.12)", () => {
-  test("defaults: Keep / Fix / Try, one vote per column, no check-in", async () => {
+describe("format, voting and Check-in phase", () => {
+  test("defaults: Keep / Fix / Try, one vote per column, no Check-in phase", async () => {
     create.mockResolvedValue({ ok: true, slug: "abc123def456" });
     render(<NewRetroForm />);
+    expect(screen.getByLabelText(/^Check-in/)).not.toBeChecked();
     const user = await fillValidForm();
     await user.click(screen.getByRole("button", { name: "Create retro" }));
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ template: "keep_fix_try", votesPerPerson: undefined, icebreaker: undefined }),
     );
+    expect(create.mock.calls[0][0].enabledPhases).not.toContain("checkin");
   });
 
   test("another format, votes to spend freely and an own check-in question", async () => {
@@ -49,30 +51,34 @@ describe("format, voting and check-in (v1.12)", () => {
     await user.click(screen.getByLabelText(/Votes to spend freely/));
     await user.clear(screen.getByLabelText("Votes per person"));
     await user.type(screen.getByLabelText("Votes per person"), "5");
-    await user.click(screen.getByLabelText(/Start with a check-in question/));
+    await user.click(screen.getByLabelText(/^Check-in/));
     await user.click(screen.getByLabelText("My own question"));
     await user.type(screen.getByLabelText("Check-in question"), "Coffee or tea?");
     await user.click(screen.getByRole("button", { name: "Create retro" }));
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ template: "mad_sad_glad", votesPerPerson: 5, icebreaker: "Coffee or tea?" }),
     );
+    expect(create.mock.calls[0][0].enabledPhases).toContain("checkin");
   });
 
-  test("a random check-in question comes from the catalog", async () => {
+  test("the drawn question is shown before creating, can be drawn again, and is the one saved", async () => {
     create.mockResolvedValue({ ok: true, slug: "abc123def456" });
     render(<NewRetroForm />);
     const user = await fillValidForm();
-    await user.click(screen.getByLabelText(/Start with a check-in question/));
+    await user.click(screen.getByLabelText(/^Check-in/));
+    const first = screen.getByLabelText("Drawn check-in question").textContent!;
+    expect(ICEBREAKERS).toContain(first);
+    await user.click(screen.getByRole("button", { name: "Another question" }));
+    const second = screen.getByLabelText("Drawn check-in question").textContent!;
+    expect(second).not.toBe(first);
     await user.click(screen.getByRole("button", { name: "Create retro" }));
-    expect(ICEBREAKERS).toContain(create.mock.calls[0][0].icebreaker);
+    expect(create.mock.calls[0][0].icebreaker).toBe(second);
   });
 
-  test("check-in needs the Intro phase; voting options need the Vote phase", async () => {
+  test("the question options only show with the Check-in phase; voting options need the Vote phase", async () => {
     const user = userEvent.setup();
     render(<NewRetroForm />);
-    await user.click(screen.getByLabelText("Intro & Pulse"));
-    expect(screen.getByLabelText(/Start with a check-in question/)).toBeDisabled();
-    expect(screen.getByText("Needs the Intro & Pulse phase.")).toBeInTheDocument();
+    expect(screen.queryByText("A random question from the catalog")).not.toBeInTheDocument();
     await user.click(screen.getByLabelText("Vote"));
     expect(screen.queryByLabelText("Votes per person")).not.toBeInTheDocument();
   });

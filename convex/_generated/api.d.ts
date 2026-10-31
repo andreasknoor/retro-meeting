@@ -11,6 +11,7 @@
 import type * as actions from "../actions.js";
 import type * as admin from "../admin.js";
 import type * as adminNode from "../adminNode.js";
+import type * as checkin from "../checkin.js";
 import type * as clock from "../clock.js";
 import type * as crons from "../crons.js";
 import type * as health from "../health.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   actions: typeof actions;
   admin: typeof admin;
   adminNode: typeof adminNode;
+  checkin: typeof checkin;
   clock: typeof clock;
   crons: typeof crons;
   health: typeof health;

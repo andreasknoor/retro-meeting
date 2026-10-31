@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
-import { calcAgenda, orderPhases } from "./lib/agenda";
+import { calcAgenda, fullAgenda, orderPhases } from "./lib/agenda";
 import { agendaValidator, phaseValidator, stateValidator, templateValidator } from "./schema";
 
 // The home page keeps at most 20 recent retros (lib/recentRetros.ts).
@@ -36,7 +36,7 @@ function toPublic(r: Doc<"retros">) {
     lengthMin: r.lengthMin,
     facilitator: r.facilitator,
     enabledPhases: r.enabledPhases,
-    agenda: r.agenda,
+    agenda: fullAgenda(r.agenda),
     state: r.state,
     phaseStartedAt: r.phaseStartedAt ?? null,
     phaseDurationSec: r.phaseDurationSec ?? null,

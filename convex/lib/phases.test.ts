@@ -48,7 +48,7 @@ describe("canMakeActionFromIdea", () => {
 });
 
 test("schedule adds start offsets", () => {
-  expect(schedule(NO_VOTE, { intro: 4, brainstorm: 10, vote: 0, discuss: 16 })).toEqual([
+  expect(schedule(NO_VOTE, { checkin: 0, intro: 4, brainstorm: 10, vote: 0, discuss: 16 })).toEqual([
     { phase: "intro", startMin: 0, minutes: 4 },
     { phase: "brainstorm", startMin: 4, minutes: 10 },
     { phase: "discuss", startMin: 14, minutes: 16 },
@@ -84,4 +84,11 @@ test("focusArea highlights one card per phase", () => {
   expect(focusArea("vote")).toBe("board");
   expect(focusArea("discuss")).toBe("actions");
   expect(focusArea("finished")).toBeNull();
+});
+
+test("the Check-in phase highlights the check-in card and comes first", () => {
+  expect(focusArea("checkin")).toBe("checkin");
+  expect(nextState("not_started", ["checkin", "intro", "brainstorm"])).toBe("checkin");
+  expect(nextState("checkin", ["checkin", "intro", "brainstorm"])).toBe("intro");
+  expect(previousPhase("intro", ["checkin", "intro", "brainstorm"])).toBe("checkin");
 });

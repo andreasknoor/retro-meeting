@@ -33,7 +33,8 @@ describe("validateRetroInput", () => {
     ["half a vote", { votesPerPerson: 2.5 }, "Votes per person must be between 1 and 10."],
     ["empty check-in", { icebreaker: "  " }, "The check-in question is empty."],
     ["long check-in", { icebreaker: "x".repeat(201) }, "The check-in question can have at most 200 characters."],
-    ["check-in without Intro", { icebreaker: "Hi?", enabledPhases: ["brainstorm"] }, "A check-in question needs the Intro & Pulse phase."],
+    ["question without Check-in", { icebreaker: "Hi?", enabledPhases: ["brainstorm"] }, "A check-in question needs the Check-in phase."],
+    ["Check-in without question", { enabledPhases: ["checkin", "brainstorm"] }, "The Check-in phase needs a question."],
   ])("rejects %s", (_, patch, message) => {
     expect(validateRetroInput({ ...valid, ...patch })).toContain(message);
   });

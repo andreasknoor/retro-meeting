@@ -13,7 +13,7 @@ import { useParticipantId } from "@/lib/participant";
 import { forgetRetro, rememberRetro } from "@/lib/recentRetros";
 import { ActionItems } from "./ActionItems";
 import { AgendaCard } from "./AgendaCard";
-import { IcebreakerCard } from "./IcebreakerCard";
+import { CheckinCard } from "./CheckinCard";
 import { IdeaBoard } from "./IdeaBoard";
 import { PhaseBar } from "./PhaseBar";
 import { PresenceStatus } from "./PresenceStatus";
@@ -56,7 +56,9 @@ export function RetroScreen({ slug }: { slug: string }) {
           </p>
         )}
         {participantId && retro.state === "finished" && <SummaryCard retro={retro} participantId={participantId} />}
-        <IcebreakerCard retro={retro} canControl={!retro.adminControlsPhases || admin} />
+        {participantId && retro.enabledPhases.includes("checkin") && (
+          <CheckinCard retro={retro} participantId={participantId} canControl={!retro.adminControlsPhases || admin} />
+        )}
         <div className="grid gap-5 lg:grid-cols-[1fr_1.25fr]">
           <AgendaCard retro={retro} />
           {participantId && retro.enabledPhases.includes("intro") && (
