@@ -37,8 +37,11 @@ test("one vote per column, movable, counts hidden until voting ends, then ranked
   await showColumn(page, "Keep");
   const pairing = cards(page, "Keep").filter({ hasText: "Pairing" });
   await pairing.getByRole("button", { name: "+ Vote" }).click();
+  await expect(guest.getByLabel("Participants")).toContainText("2 have voted");
   await pairing.getByRole("button", { name: "✓ Voted" }).click();
   await expect(page.getByLabel("Votes left")).toHaveText("3 of 3 votes left");
+  // Counted on the server, so each step has arrived before the next (and before the phase switch).
+  await expect(guest.getByLabel("Participants")).toContainText("1 has voted");
   await pairing.getByRole("button", { name: "+ Vote" }).click();
   await expect(guest.getByLabel("Participants")).toContainText("2 have voted");
   for (const p of [page, guest]) {

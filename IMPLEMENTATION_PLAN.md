@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.10** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.11** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -90,7 +90,7 @@ A sticky bar below the header contains:
   - `Pause` / `Resume` (v1.7, replaced `End early`): Pause stops the timer and keeps the remaining time (`Paused 03:12`, negative in overtime); Resume continues from it. `+1 min` also works while paused. Timers stopped with the old `End early` count as paused at 00:00
   - `Reset` sets the retro back to `not_started` (asks for confirmation inline, not in a browser dialog). Ideas, pulse answers and actions stay; **votes are deleted** since v1.7, like going back before Vote, and the confirmation says so when there are any
 - **Locked for participants:** they see the timer and the stepper, plus the hint "Only the admin can switch phases." (v1.5; before: "The facilitator controls the phases.") and a **"Log in to control"** button that opens an inline password field (same login, lockout and session as the admin area). The server rejects phase mutations without a valid admin session ("Only the admin can switch phases.").
-- **Presence (v1.6):** next to the timer, "N online" counts the people (browsers, not tabs) that have the retro open, via `@convex-dev/presence` (heartbeat every 10 s; a closed tab leaves at once, a lost connection after about 25 s). During Intro it adds how many have answered the pulse check, during Vote how many have voted.
+- **Presence (v1.6):** next to the timer, "N online" counts the people (browsers, not tabs) that have the retro open, via `@convex-dev/presence` (heartbeat every 20 s from `lib/useOnlineCount.ts`; a closed tab leaves at once, a lost connection after about 50 s). Since v1.11 a hidden tab (minimised, covered, behind the video call) stays online; before, the component's own hook signed it off, so two browsers on one screen showed different counts. During Intro it adds how many have answered the pulse check, during Vote how many have voted.
 - **Sync model:** the server stores `phaseStartedAt` and `phaseDurationSec`, and each client computes the remaining time itself. No server-side ticking is needed, and clients stay in sync up to differences in device clocks. These differences are compensated by a server-time offset measured when the page loads.
 
 ### 4.4 Pulse check
@@ -438,6 +438,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] v1.8: the app version is shown small next to the name in the top bar (instead of the footer); the dev deployment skips the global limit on new retros via the Convex env var `RELAX_CREATE_RETRO_LIMIT=true` (not set on production)
 - [x] v1.9: "QR code" next to "Copy link" in the retro header opens a large QR code of the retro link (for joining by phone during a video call); generated in the browser with `qrcode`, so the link never reaches a third-party service
 - [x] v1.10: during the Vote phase, `+ Vote` is a filled call-to-action button (like `Start Vote`) on every card of a column whose vote is still free; once the column's vote is used, the chosen card shows `✓ Voted` (outlined in the primary colour) and the others step back to a neutral outline
+- [x] v1.11: presence counts hidden tabs as online (own heartbeat hook instead of the component's `usePresence`, which disconnected on `visibilitychange`); heartbeat 20 s, offline after ~50 s without one or at once when the tab closes
 
 **Total: about 9.5 working days.**
 

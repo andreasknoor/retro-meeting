@@ -16,6 +16,15 @@ test("shows who is online and counts down when someone leaves", async ({ page, b
   await expect(secondTab.getByLabel("Participants")).toHaveText(/^2 online/);
   await secondTab.close();
 
+  // A covered or minimised window (e.g. behind the video call) still counts as online.
+  await guest.evaluate(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForTimeout(3_000);
+  await expect(participants).toHaveText(/^2 online/);
+
   await guest.close({ runBeforeUnload: true });
   await expect(participants).toHaveText(/^1 online/, { timeout: 40_000 });
   await guest.context().close();
