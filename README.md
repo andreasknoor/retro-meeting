@@ -9,7 +9,7 @@ Real-time team retrospectives (Keep / Fix / Try). Participants join via link, no
 ## Features
 
 - Create a retro (name, goal, date, length, facilitator, phases, admin password; format Keep / Fix / Try, Start / Stop / Continue or Mad / Sad / Glad; one vote per column or votes to spend freely); share it by link or as a QR code for phones
-- Phases with a synchronized timer: optional Check-in (everyone answers a short question) → Intro & Pulse → Brainstorm → Vote → Discuss & Act (Back, +1 min, Pause / Resume, Reset)
+- Phases with a synchronized timer: optional Check-in (everyone answers a short question) → Intro & Pulse → Brainstorm → Vote → Discuss & Act (Back, +1 min, Pause / Resume, Reset); on every phase change all browsers scroll to the card of the new phase
 - By default only the admin switches phases; the creator is logged in automatically
 - Anonymous pulse check (1–5), live idea board, one vote per column (counts hidden until voting ends), action items with owner, optional due date and done status
 - Summary of a finished retro: copy as Markdown, download as .md, or print as PDF

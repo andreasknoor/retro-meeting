@@ -26,7 +26,7 @@ export function PulseCard({ retro, participantId }: { retro: Retro; participantI
   const max = Math.max(1, ...(summary?.counts ?? []));
 
   return (
-    <Card className={cn(focusArea(retro.state) === "pulse" && "ring-2 ring-primary")}>
+    <Card data-focus-area="pulse" className={cn(focusArea(retro.state) === "pulse" && "ring-2 ring-primary")}>
       <CardHeader>
         <CardTitle className="text-xl">Pulse check</CardTitle>
         <CardDescription>How did the time since the last retro go for you?</CardDescription>

@@ -46,7 +46,7 @@ export function CheckinCard({ retro, participantId, canControl }: { retro: Retro
   }
 
   return (
-    <Card className={cn(focusArea(state) === "checkin" && "ring-2 ring-primary")}>
+    <Card data-focus-area="checkin" className={cn(focusArea(state) === "checkin" && "ring-2 ring-primary")}>
       <CardHeader>
         <CardTitle className="text-sm font-bold tracking-[0.14em] text-muted-foreground uppercase">Check-in</CardTitle>
         <CardDescription className="text-xl font-semibold text-foreground">{data.question}</CardDescription>

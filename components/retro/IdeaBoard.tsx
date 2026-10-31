@@ -110,7 +110,7 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
   }
 
   return (
-    <Card className={cn(focusArea(state) === "board" && "ring-2 ring-primary")}>
+    <Card data-focus-area="board" className={cn(focusArea(state) === "board" && "ring-2 ring-primary")}>
       <CardHeader>
         <CardTitle className="text-xl">Idea board</CardTitle>
         <CardDescription>{boardHint(state, votingOn, byVotes, canMakeAction, retro.votesPerPerson)}</CardDescription>

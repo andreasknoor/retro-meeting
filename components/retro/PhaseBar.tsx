@@ -51,7 +51,7 @@ export function PhaseBar({ retro, hasVotes, isAdmin, onAdminLogin, children }: P
   const inPhase = state !== "not_started" && state !== "finished";
 
   return (
-    <div className="z-10 border-b bg-card shadow-sm md:sticky md:top-0">
+    <div data-phase-bar className="z-10 border-b bg-card shadow-sm md:sticky md:top-0">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
         <ol
           className="-mx-4 flex w-[calc(100%+2rem)] items-center gap-1.5 overflow-x-auto px-4 md:mx-0 md:w-auto md:flex-wrap md:px-0"

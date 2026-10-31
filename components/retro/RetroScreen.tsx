@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
 import { agendaTotal, PHASE_LABELS } from "@/convex/lib/agenda";
+import { focusArea } from "@/convex/lib/phases";
 import { useParticipantId } from "@/lib/participant";
 import { forgetRetro, rememberRetro } from "@/lib/recentRetros";
 import { ActionItems } from "./ActionItems";
@@ -38,6 +39,7 @@ export function RetroScreen({ slug }: { slug: string }) {
   }, [retro, slug]);
 
   usePhaseChangeToast(retro?.state);
+  usePhaseChangeScroll(retro?.state);
 
   if (retro === undefined) return <RetroLoading />;
   if (retro === null) return <RetroNotFound />;
@@ -137,6 +139,60 @@ function usePhaseChangeToast(state: Retro["state"] | undefined) {
     if (state === "finished") toast("Retro finished");
     else if (state === "not_started") toast("Retro reset · ideas and actions kept");
     else toast(`Phase changed to ${PHASE_LABELS[state]}`);
+  }, [state]);
+}
+
+const USER_SCROLL_EVENTS = ["wheel", "touchstart", "keydown", "mousedown"] as const;
+
+/**
+ * Scrolls everyone to the top of the highlighted card when the phase changes while the page is
+ * open (after Finish: to the summary). Not on load, pause or reset; focus stays where it is.
+ */
+function usePhaseChangeScroll(state: Retro["state"] | undefined) {
+  const previous = useRef(state);
+  useEffect(() => {
+    const before = previous.current;
+    previous.current = state;
+    if (before === undefined || state === undefined || before === state) return;
+    const target = state === "finished" ? "summary" : focusArea(state);
+    if (!target) return;
+    let frame = 0;
+    let tries = 0;
+    let correction: ReturnType<typeof setTimeout> | undefined;
+    const scrollTo = (card: HTMLElement) => {
+      // On wide screens the phase bar sticks to the top and would cover the card's top edge.
+      const bar = document.querySelector<HTMLElement>("[data-phase-bar]");
+      const offset = (bar && getComputedStyle(bar).position === "sticky" ? bar.offsetHeight : 0) + 16;
+      const top = card.getBoundingClientRect().top + window.scrollY - offset;
+      if (Math.abs(top - window.scrollY) < 2) return;
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top, behavior: reduceMotion ? "auto" : "smooth" });
+    };
+    const scroll = () => {
+      const card = document.querySelector<HTMLElement>(`[data-focus-area="${target}"]`);
+      // The summary renders once its queries have loaded; wait a few frames for it.
+      if (!card) {
+        if (++tries < 60) frame = requestAnimationFrame(scroll);
+        return;
+      }
+      scrollTo(card);
+      // Content above the card (phase bar, cards of the new phase) can still change height while
+      // its data arrives; aim again once that has settled, unless the person scrolls meanwhile.
+      correction = setTimeout(() => {
+        stopCorrection();
+        scrollTo(card);
+      }, 800);
+      for (const event of USER_SCROLL_EVENTS) window.addEventListener(event, stopCorrection, { passive: true });
+    };
+    const stopCorrection = () => {
+      clearTimeout(correction);
+      for (const event of USER_SCROLL_EVENTS) window.removeEventListener(event, stopCorrection);
+    };
+    frame = requestAnimationFrame(scroll);
+    return () => {
+      cancelAnimationFrame(frame);
+      stopCorrection();
+    };
   }, [state]);
 }
 

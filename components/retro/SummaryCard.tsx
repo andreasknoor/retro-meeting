@@ -60,7 +60,7 @@ export function SummaryCard({ retro, participantId }: { retro: Retro; participan
   }
 
   return (
-    <Card id="retro-summary" className="ring-2 ring-primary">
+    <Card id="retro-summary" data-focus-area="summary" className="ring-2 ring-primary">
       <CardHeader>
         <CardTitle className="text-xl">Summary</CardTitle>
         <CardDescription>The result of this retro. Take it with you as Markdown or print it as PDF.</CardDescription>

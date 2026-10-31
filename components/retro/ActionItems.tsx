@@ -33,7 +33,7 @@ export function ActionItems({ retro, participantId, draft, onClearDraft, onAdmin
   const count = actions?.length ?? 0;
 
   return (
-    <Card className={cn(focusArea(retro.state) === "actions" && "ring-2 ring-primary")}>
+    <Card data-focus-area="actions" className={cn(focusArea(retro.state) === "actions" && "ring-2 ring-primary")}>
       <CardHeader>
         <CardTitle className="text-xl">Action items</CardTitle>
         <CardDescription>
