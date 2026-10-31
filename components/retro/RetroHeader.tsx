@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
 import { formatShortDate } from "@/lib/format";
 import { retroUrl } from "@/lib/slug";
+import { QrCodeDialog } from "./QrCodeDialog";
 
 type Props = {
   slug: string;
@@ -15,6 +17,8 @@ type Props = {
 };
 
 export function RetroHeader({ slug, name, subtitle, date, lengthMin, facilitator, isAdmin }: Props) {
+  const [qrLink, setQrLink] = useState<string | null>(null);
+
   async function copyLink() {
     const link = retroUrl(window.location.origin, slug);
     try {
@@ -38,6 +42,13 @@ export function RetroHeader({ slug, name, subtitle, date, lengthMin, facilitator
             >
               ⧉ Copy link
             </button>
+            <button
+              type="button"
+              onClick={() => setQrLink(retroUrl(window.location.origin, slug))}
+              className="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] tracking-wider text-white hover:bg-white/25"
+            >
+              ▦ QR code
+            </button>
             {isAdmin && (
               <span className="rounded-full bg-amber-200 px-2.5 py-0.5 text-[11px] tracking-wider text-amber-950">Admin</span>
             )}
@@ -51,6 +62,7 @@ export function RetroHeader({ slug, name, subtitle, date, lengthMin, facilitator
           <Meta label="Facilitator" value={facilitator} />
         </dl>
       </div>
+      {qrLink && <QrCodeDialog link={qrLink} name={name} onClose={() => setQrLink(null)} />}
     </header>
   );
 }

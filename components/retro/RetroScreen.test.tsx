@@ -115,6 +115,16 @@ describe("RetroScreen", () => {
     expect(screen.getByRole("button", { name: "Start Intro & Pulse" })).toBeInTheDocument();
   });
 
+  test("shows the retro link as a QR code and closes it again", async () => {
+    const user = userEvent.setup();
+    mockRetro(retro);
+    render(<RetroScreen slug="k7f3q9xa" />);
+    await user.click(screen.getByRole("button", { name: /QR code/ }));
+    expect(screen.getByRole("dialog")).toHaveTextContent(`${window.location.origin}/r/k7f3q9xa`);
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   test("copies the share link", async () => {
     const user = userEvent.setup();
     mockRetro(retro);

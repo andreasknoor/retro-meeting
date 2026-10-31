@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.8** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.9** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -436,6 +436,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] v1.6 (backlog items): actions are capped per participant (20) instead of per retro, which removes the conflicts when many add actions at once (load test, 10 simultaneous adds: p95 from 1.6–3.5 s to 0.44 s); the action list says when it is cut off at 200. Presence: the phase bar shows how many are online and, during Intro / Vote, how many have answered / voted (`@convex-dev/presence`, ids never leave the server; load test: 30 joins p95 0.54 s, heartbeats p95 0.24 s)
 - [x] v1.7 (backlog items 1–10 without 8b): Reset deletes votes after a confirmation and ignores stale clicks; vote counts and ranking hidden during the Vote phase (server-side); a finished retro is read-only for ideas and the pulse check; deleting an idea asks inline and warns about lost votes; "Make action" only in Discuss, "+ Another action" on ideas that have one, with a note in the form; buttons that do nothing in the current phase are hidden instead of disabled with tooltips; `End early` replaced by Pause / Resume; actions can be ticked off; Summary card with Markdown copy / download and print; failed admin logins slow down (10 s … 2 min) instead of locking for 15 minutes
 - [x] v1.8: the app version is shown small next to the name in the top bar (instead of the footer); the dev deployment skips the global limit on new retros via the Convex env var `RELAX_CREATE_RETRO_LIMIT=true` (not set on production)
+- [x] v1.9: "QR code" next to "Copy link" in the retro header opens a large QR code of the retro link (for joining by phone during a video call); generated in the browser with `qrcode`, so the link never reaches a third-party service
 
 **Total: about 9.5 working days.**
 
