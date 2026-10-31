@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -193,18 +194,17 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
                       }
                     >
                       {votingOpen && (
-                        <button
-                          type="button"
+                        // A call to action like "Start Vote" while this column's vote is still free;
+                        // once used, the other cards only offer to move it, so they step back.
+                        <Button
+                          size="sm"
+                          variant={idea.votedByMe ? "secondary" : votedColumns.has(idea.column) ? "outline" : "default"}
                           aria-pressed={idea.votedByMe}
                           onClick={() => void vote(idea)}
-                          className={cn(
-                            "rounded-full border-[1.5px] px-3 py-0.5 text-sm font-semibold text-muted-foreground transition-colors",
-                            "hover:border-primary hover:text-primary",
-                            idea.votedByMe && "border-primary bg-primary text-primary-foreground hover:text-primary-foreground",
-                          )}
+                          className={cn("h-8 px-3.5 text-sm font-semibold", idea.votedByMe && "border-primary text-primary")}
                         >
                           {idea.votedByMe ? "✓ Voted" : "+ Vote"}
-                        </button>
+                        </Button>
                       )}
                       {votingOn && byVotes && (
                         <span className="text-sm font-bold">

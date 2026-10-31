@@ -366,3 +366,15 @@ test("boardHint", () => {
   expect(boardHint("discuss", true, true, true)).toMatch(/Use “Make action” to turn an idea into an action/);
   expect(boardHint("brainstorm", true, false, false)).not.toMatch(/Make action/);
 });
+
+test("vote buttons are a call to action where the column's vote is still free", () => {
+  render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" onMakeAction={makeAction} />);
+  const button = (col: string, text: string) =>
+    within(screen.getByRole("region", { name: col })).getAllByRole("listitem").find((li) => li.textContent?.includes(text))!.querySelector("button")!;
+  // Fix has no vote yet: filled like "Start Vote".
+  expect(button("Fix", "Flaky tests")).toHaveClass("bg-primary", "text-primary-foreground");
+  // Keep's vote is on "Pairing": that one is marked, the other only offers to move it.
+  expect(button("Keep", "Pairing")).toHaveClass("bg-secondary", "border-primary");
+  expect(button("Keep", "Short stand-ups")).toHaveClass("bg-background");
+  expect(button("Keep", "Short stand-ups")).not.toHaveClass("bg-primary");
+});
