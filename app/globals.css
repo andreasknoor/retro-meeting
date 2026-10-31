@@ -135,3 +135,19 @@
     outline-offset: 2px;
   }
 }
+/* "Print / PDF" on the summary card prints only the summary. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #retro-summary,
+  #retro-summary * {
+    visibility: visible;
+  }
+  #retro-summary {
+    position: absolute;
+    inset: 0 0 auto;
+    box-shadow: none;
+    --tw-ring-shadow: 0 0 #0000;
+  }
+}

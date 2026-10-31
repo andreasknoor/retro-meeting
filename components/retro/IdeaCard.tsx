@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Idea } from "./types";
 
@@ -11,9 +11,12 @@ type Props = {
   /** Extra actions rendered right before Delete. */
   actions?: ReactNode;
   onDelete?: () => void;
+  /** Extra warning in the delete confirmation, e.g. that votes will be lost. */
+  deleteWarning?: string;
 };
 
-export function IdeaCard({ idea, topLabel, children, actions, onDelete }: Props) {
+export function IdeaCard({ idea, topLabel, children, actions, onDelete, deleteWarning }: Props) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   return (
     <li
       className={cn(
@@ -43,16 +46,36 @@ export function IdeaCard({ idea, topLabel, children, actions, onDelete }: Props)
           </span>
         )}
       </p>
-      <div className="mt-2.5 flex flex-wrap items-center gap-3">
-        {children}
-        <span className="flex-1" />
-        {actions}
-        {onDelete && (
-          <button type="button" onClick={onDelete} className="text-sm text-muted-foreground hover:text-destructive">
-            Delete
+      {confirmDelete && onDelete ? (
+        <div className="mt-2.5 flex flex-wrap items-center gap-3 text-sm" role="group" aria-label="Confirm delete">
+          <span className="text-muted-foreground">Delete for everyone?{deleteWarning && ` ${deleteWarning}`}</span>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmDelete(false);
+              onDelete();
+            }}
+            className="font-semibold text-destructive"
+          >
+            Yes, delete
           </button>
-        )}
-      </div>
+          <button type="button" onClick={() => setConfirmDelete(false)} className="text-muted-foreground">
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="mt-2.5 flex flex-wrap items-center gap-3">
+          {children}
+          <span className="flex-1" />
+          {actions}
+          {onDelete && (
+            <button type="button" onClick={() => setConfirmDelete(true)} className="text-sm text-muted-foreground hover:text-destructive">
+              Delete
+            </button>
+          )}
+        </div>
+      )}
     </li>
   );
 }

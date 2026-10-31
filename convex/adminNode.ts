@@ -29,18 +29,14 @@ export const login = action({
       retroId: Id<"retros">;
       passwordHash: string;
       passwordSalt: string;
-      attemptsLeft: number;
+      nextDelaySec: number;
     } = await ctx.runMutation(internal.admin.beginAttempt, { slug });
 
     const expected = Buffer.from(attempt.passwordHash, "hex");
     const actual = await scryptAsync(password, Buffer.from(attempt.passwordSalt, "hex"), expected.length || 64);
     if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-      const left = attempt.attemptsLeft;
-      throw new ConvexError(
-        left > 0
-          ? `Wrong password. ${left} ${left === 1 ? "attempt" : "attempts"} left.`
-          : "Wrong password. Too many failed attempts; try again in 15 minutes.",
-      );
+      const wait = attempt.nextDelaySec;
+      throw new ConvexError(wait > 0 ? `Wrong password. Please wait ${wait} seconds before the next try.` : "Wrong password.");
     }
 
     const { token, tokenHash, expiresAt } = newSession();

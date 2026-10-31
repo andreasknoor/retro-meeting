@@ -38,6 +38,7 @@ const base: Retro = {
   state: "not_started",
   phaseStartedAt: null,
   phaseDurationSec: null,
+  pausedRemainingSec: null,
   adminControlsPhases: false,
 };
 
@@ -49,7 +50,7 @@ describe("PhaseBar", () => {
     expect(timer()).toHaveTextContent("Not started04:00");
     expect(screen.getByRole("button", { name: "Start Intro & Pulse" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "+1 min" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "End early" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Pause" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Reset" })).toBeDisabled();
   });
 
@@ -66,8 +67,8 @@ describe("PhaseBar", () => {
     expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "startNext", "brainstorm", undefined);
     await user.click(screen.getByRole("button", { name: "+1 min" }));
     expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "extend", "brainstorm", undefined);
-    await user.click(screen.getByRole("button", { name: "End early" }));
-    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "endEarly", "brainstorm", undefined);
+    await user.click(screen.getByRole("button", { name: "Pause" }));
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "pause", "brainstorm", undefined);
   });
 
   test("Back returns to the previous phase and is disabled at the start", async () => {
@@ -110,10 +111,20 @@ describe("PhaseBar", () => {
     expect(timer()).toHaveTextContent("+01:23");
   });
 
-  test("ended early: shows Ended and still offers the next phase", () => {
-    render(<PhaseBar hasVotes={false} retro={{ ...base, state: "discuss" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
-    expect(timer()).toHaveTextContent("Discuss & ActEnded");
+  test("paused: shows the remaining time, offers Resume, +1 min and the next phase", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<PhaseBar hasVotes={false} retro={{ ...base, state: "discuss", pausedRemainingSec: 192 }} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    expect(timer()).toHaveTextContent("Discuss & Act · Paused03:12");
     expect(screen.getByRole("button", { name: "Finish retro" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+1 min" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Resume" }));
+    expect(mutate).toHaveBeenLastCalledWith("k7f3q9xa", "resume", "discuss", undefined);
+  });
+
+  test("a timer stopped by the old End early shows as paused at 00:00", () => {
+    render(<PhaseBar hasVotes={false} retro={{ ...base, state: "discuss" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    expect(timer()).toHaveTextContent("Discuss & Act · Paused00:00");
+    expect(screen.getByRole("button", { name: "Resume" })).toBeEnabled();
   });
 
   test("finished: no start button", () => {
@@ -132,6 +143,17 @@ describe("PhaseBar", () => {
     await user.click(screen.getByRole("button", { name: "Reset" }));
     await user.click(screen.getByRole("button", { name: "Reset" }));
     expect(mutate).toHaveBeenCalledWith("k7f3q9xa", "reset", "vote", undefined);
+  });
+
+  test("reset warns that votes will be deleted when there are any", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<PhaseBar hasVotes retro={{ ...base, state: "discuss" }} isAdmin={false} onAdminLogin={onAdminLogin} />);
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    expect(screen.getByRole("alertdialog", { name: "Confirm reset" })).toHaveTextContent(
+      "Reset deletes all votes. Ideas, pulse answers and actions stay.",
+    );
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    expect(mutate).toHaveBeenCalledWith("k7f3q9xa", "reset", "discuss", { discardVotes: true });
   });
 
   test("leaves disabled phases out of the stepper", () => {

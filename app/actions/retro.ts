@@ -28,7 +28,7 @@ export async function createRetro(input: CreateRetroInput): Promise<{ ok: true; 
   }
 }
 
-export type PhaseCommand = "startNext" | "back" | "extend" | "endEarly" | "reset";
+export type PhaseCommand = "startNext" | "back" | "extend" | "pause" | "resume" | "reset";
 
 /**
  * Phase controls go through the server so the admin token (if any) can be read from the
@@ -43,8 +43,9 @@ export async function switchPhase(
   assertSlug(slug);
   try {
     const token = (await readToken(slug)) || undefined;
-    if (command === "reset") await fetchMutation(api.phase.reset, { slug, token });
-    else if (command === "back") await fetchMutation(api.phase.back, { slug, from, token, discardVotes: options.discardVotes });
+    if (command === "reset" || command === "back") {
+      await fetchMutation(api.phase[command], { slug, from, token, discardVotes: options.discardVotes });
+    }
     else await fetchMutation(api.phase[command], { slug, from, token });
     return { ok: true };
   } catch (err) {

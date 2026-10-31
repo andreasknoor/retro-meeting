@@ -112,10 +112,10 @@ const votes = await Promise.all(
   people.flatMap((p) => columns.map((column) => timed(() => p.client.mutation(api.votes.toggle, { ideaId: firstOf(column), participantId: p.participantId })))),
 );
 console.log(`Votes cast (${votes.length}, all on the same 3 ideas): ${stats(votes)}`);
-await Promise.all(people.map((p) => until(p, () => p.ideas.find((i) => i.id === firstOf("keep"))?.voteCount === N)));
-console.log(`  vote counts correct for everyone: ${N} votes on each top idea`);
-
+// Counts are hidden while voting (v1.7) and show up once the Vote phase is over.
 await phase("vote");
+await Promise.all(people.map((p) => until(p, () => p.ideas.find((i) => i.id === firstOf("keep"))?.voteCount === N)));
+console.log(`  vote counts correct for everyone after voting: ${N} votes on each top idea`);
 const actions = await Promise.all(
   people.slice(0, 10).map((p, i) => timed(() => p.client.mutation(api.actions.add, { slug, participantId: p.participantId, text: `Action ${i}`, owner: `Owner ${i}`, dueDate: "2099-12-01" }))),
 );

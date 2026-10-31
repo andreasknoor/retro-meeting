@@ -92,3 +92,10 @@ describe("PulseCard", () => {
     expect(screen.getByRole("status")).toHaveTextContent(`only the first ${MAX_PULSE_ANSWERS} are included`);
   });
 });
+
+test("is read-only once the retro is finished", () => {
+  vi.mocked(useQuery).mockReturnValue(summarize([4, 3], 4));
+  render(<PulseCard retro={{ ...retro, state: "finished" }} participantId="me-000000" />);
+  for (const button of within(screen.getByRole("group", { name: "Your score" })).getAllByRole("button")) expect(button).toBeDisabled();
+  expect(screen.getByText("The retro is finished, so answers can no longer change.")).toBeInTheDocument();
+});

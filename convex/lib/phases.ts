@@ -3,6 +3,9 @@ import { type Agenda, orderPhases, type Phase } from "./agenda";
 
 export type RetroState = "not_started" | Phase | "finished";
 
+/** After "Finish", ideas and pulse answers are read-only (v1.7); actions stay editable. */
+export const FINISHED_MESSAGE = "The retro is finished. Use Back to reopen it.";
+
 /** -1 before the first phase, enabled.length once finished. */
 export function phaseIndex(state: RetroState, enabled: readonly Phase[]): number {
   const phases = orderPhases(enabled);

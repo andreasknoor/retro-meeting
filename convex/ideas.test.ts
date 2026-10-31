@@ -88,3 +88,15 @@ describe("ideas.remove", () => {
     await expect(t.mutation(api.ideas.remove, { ideaId, participantId: ALICE })).resolves.toBeNull();
   });
 });
+
+test("a finished retro is read-only for ideas, except for the admin", async () => {
+  const { t, slug, add } = await setup();
+  const ideaId = await add(ALICE, "keep", "Mine");
+  await t.run(async (ctx) => {
+    const retro = (await ctx.db.query("retros").first())!;
+    await ctx.db.patch("retros", retro._id, { state: "finished" });
+  });
+  await expect(add(ALICE, "keep", "Late")).rejects.toThrow("The retro is finished. Use Back to reopen it.");
+  await expect(t.mutation(api.ideas.remove, { ideaId, participantId: ALICE })).rejects.toThrow("The retro is finished.");
+  expect(await t.query(api.ideas.list, { slug, participantId: ALICE })).toHaveLength(1);
+});

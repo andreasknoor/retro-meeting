@@ -61,11 +61,17 @@ describe("switchPhase", () => {
     expect(args).toEqual({ slug: "k7f3q9xa", from: "vote", token: undefined, discardVotes: true });
   });
 
-  test("reset takes no state; no cookie means no token", async () => {
-    await switchPhase("k7f3q9xa", "reset", "vote");
+  test("reset sends the seen state and the vote confirmation; no cookie means no token", async () => {
+    await switchPhase("k7f3q9xa", "reset", "vote", { discardVotes: true });
     const [ref, args] = vi.mocked(fetchMutation).mock.calls[0];
     expect(getFunctionName(ref as never)).toBe("phase:reset");
-    expect(args).toEqual({ slug: "k7f3q9xa", token: undefined });
+    expect(args).toEqual({ slug: "k7f3q9xa", from: "vote", token: undefined, discardVotes: true });
+  });
+
+  test("pause and resume", async () => {
+    await switchPhase("k7f3q9xa", "pause", "vote");
+    await switchPhase("k7f3q9xa", "resume", "vote");
+    expect(vi.mocked(fetchMutation).mock.calls.map(([ref]) => getFunctionName(ref as never))).toEqual(["phase:pause", "phase:resume"]);
   });
 
   test("reports a refusal", async () => {

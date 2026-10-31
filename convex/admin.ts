@@ -4,7 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { deleteIdea } from "./ideas";
 import { orderPhases } from "./lib/agenda";
-import { adminRetro, LOCKOUT_WINDOW_MS, MAX_FAILED_ATTEMPTS, requireAdmin, sha256Hex } from "./lib/adminAuth";
+import { adminRetro, LOGIN_WINDOW_MS, loginDelaySec, requireAdmin, sha256Hex } from "./lib/adminAuth";
 import { findRetro } from "./lib/retroAccess";
 import { presence } from "./presence";
 import { agendaValidator } from "./schema";
@@ -13,8 +13,8 @@ import { agendaValidator } from "./schema";
 
 /**
  * Records a login attempt as failed up front and returns what the action needs to verify the
- * password. Counting and recording happen in one transaction, so parallel attempts cannot
- * slip past the lockout. A successful login marks the attempt as success (finishLogin).
+ * password. Checking the wait and recording happen in one transaction, so parallel attempts
+ * cannot skip it. A successful login marks the attempt as success (finishLogin).
  */
 export const beginAttempt = internalMutation({
   args: { slug: v.string() },
@@ -23,7 +23,7 @@ export const beginAttempt = internalMutation({
     retroId: v.id("retros"),
     passwordHash: v.string(),
     passwordSalt: v.string(),
-    attemptsLeft: v.number(),
+    nextDelaySec: v.number(),
   }),
   handler: async (ctx, { slug }) => {
     const retro = await findRetro(ctx, slug);
@@ -31,15 +31,15 @@ export const beginAttempt = internalMutation({
     const now = Date.now();
     const recent = await ctx.db
       .query("loginAttempts")
-      .withIndex("by_retroId_and_at", (q) => q.eq("retroId", retro._id).gt("at", now - LOCKOUT_WINDOW_MS))
+      .withIndex("by_retroId_and_at", (q) => q.eq("retroId", retro._id).gt("at", now - LOGIN_WINDOW_MS))
       .order("desc")
       .take(50);
-    const failures = recent.filter((a) => !a.success);
-    if (failures.length >= MAX_FAILED_ATTEMPTS) {
-      // Unlocks when the oldest of the last MAX_FAILED_ATTEMPTS failures leaves the window.
-      const unlockAt = failures[MAX_FAILED_ATTEMPTS - 1].at + LOCKOUT_WINDOW_MS;
-      const minutes = Math.max(1, Math.ceil((unlockAt - now) / 60_000));
-      throw new ConvexError(`Too many failed attempts. Try again in ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`);
+    const lastSuccess = recent.findIndex((a) => a.success);
+    const failures = lastSuccess === -1 ? recent : recent.slice(0, lastSuccess);
+    const readyAt = failures.length > 0 ? failures[0].at + loginDelaySec(failures.length) * 1000 : 0;
+    if (now < readyAt) {
+      const seconds = Math.ceil((readyAt - now) / 1000);
+      throw new ConvexError(`Too many failed attempts. Try again in ${seconds} ${seconds === 1 ? "second" : "seconds"}.`);
     }
     const attemptId = await ctx.db.insert("loginAttempts", { retroId: retro._id, at: now, success: false });
     return {
@@ -47,7 +47,7 @@ export const beginAttempt = internalMutation({
       retroId: retro._id,
       passwordHash: retro.passwordHash,
       passwordSalt: retro.passwordSalt,
-      attemptsLeft: MAX_FAILED_ATTEMPTS - failures.length - 1,
+      nextDelaySec: loginDelaySec(failures.length + 1),
     };
   },
 });
@@ -107,11 +107,16 @@ export const updateAgenda = mutation({
       next[phase] = minutes;
     }
     const state = retro.state;
-    const running = state !== "not_started" && state !== "finished" && retro.phaseDurationSec !== undefined;
+    const inPhase = state !== "not_started" && state !== "finished";
+    const deltaSec = inPhase ? (next[state] - retro.agenda[state]) * 60 : 0;
     await ctx.db.patch("retros", retro._id, {
       agenda: next,
-      ...(running && {
-        phaseDurationSec: Math.max(0, retro.phaseDurationSec! + (next[state] - retro.agenda[state]) * 60),
+      ...(inPhase && retro.phaseDurationSec !== undefined && {
+        phaseDurationSec: Math.max(0, retro.phaseDurationSec + deltaSec),
+      }),
+      // A paused timer keeps the change for when it resumes.
+      ...(inPhase && retro.pausedRemainingSec !== undefined && {
+        pausedRemainingSec: retro.pausedRemainingSec + deltaSec,
       }),
     });
     return null;

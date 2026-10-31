@@ -9,7 +9,7 @@ async function showColumn(page: Page, column: string) {
 
 const cards = (page: Page, column: string) => page.getByRole("region", { name: column }).getByRole("listitem");
 
-test("one vote per column, movable, and columns re-rank live", async ({ page, browser, newRetro }) => {
+test("one vote per column, movable, counts hidden until voting ends, then ranked live", async ({ page, browser, newRetro }) => {
   const url = await newRetro(page, { disable: ["Intro & Pulse"] });
   const guest = await joinAsGuest(browser, url);
 
@@ -18,7 +18,7 @@ test("one vote per column, movable, and columns re-rank live", async ({ page, br
     await page.getByLabel("New idea for Keep").press("Enter");
   }
   await expect(cards(guest, "Keep")).toHaveCount(3);
-  await expect(cards(guest, "Keep").first().getByRole("button", { name: "+ Vote" })).toBeDisabled();
+  await expect(cards(guest, "Keep").first().getByRole("button", { name: "+ Vote" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Start Brainstorm" }).click();
   await page.getByRole("button", { name: "Start Vote" }).click();
@@ -30,31 +30,37 @@ test("one vote per column, movable, and columns re-rank live", async ({ page, br
   await expect(guest.getByLabel("Votes left")).toHaveText("2 of 3 votes left");
   await cards(guest, "Keep").filter({ hasText: "Pairing" }).getByRole("button", { name: "+ Vote" }).click();
   await expect(guest.getByLabel("Votes left")).toHaveText("2 of 3 votes left");
+  // The toast comes from the server's answer, so the move has arrived before the phase changes.
+  await expect(guest.getByText("Vote moved")).toBeVisible();
 
-  // Creator also votes "Pairing": it ranks first with the badge for everyone.
+  // The creator votes "Pairing", takes it back and votes again. Nobody sees counts or ranking yet.
   await showColumn(page, "Keep");
-  await cards(page, "Keep").filter({ hasText: "Pairing" }).getByRole("button", { name: "+ Vote" }).click();
+  const pairing = cards(page, "Keep").filter({ hasText: "Pairing" });
+  await pairing.getByRole("button", { name: "+ Vote" }).click();
+  await pairing.getByRole("button", { name: "✓ Voted" }).click();
+  await expect(page.getByLabel("Votes left")).toHaveText("3 of 3 votes left");
+  await pairing.getByRole("button", { name: "+ Vote" }).click();
+  await expect(guest.getByLabel("Participants")).toContainText("2 have voted");
+  for (const p of [page, guest]) {
+    await expect(cards(p, "Keep").first()).toContainText("Stand-ups");
+    await expect(p.getByRole("region", { name: "Keep" })).not.toContainText(/\d votes?/);
+  }
+
+  // After the Vote phase: ranked with counts, no vote buttons.
+  await page.getByRole("button", { name: "Start Discuss & Act" }).click();
   for (const p of [page, guest]) {
     await showColumn(p, "Keep");
     await expect(cards(p, "Keep").first()).toContainText("Top in Keep");
     await expect(cards(p, "Keep").first()).toContainText("Pairing");
-    await expect(cards(p, "Keep").first()).toContainText("2 votes");
+    await expect(cards(p, "Keep").first()).toContainText("2 votes· incl. yours");
     await expect(cards(p, "Keep").filter({ hasText: "Demos" })).toContainText("0 votes");
+    await expect(p.getByRole("button", { name: "+ Vote" })).toHaveCount(0);
   }
 
-  // Taking the vote back.
-  await cards(page, "Keep").filter({ hasText: "Pairing" }).getByRole("button", { name: "✓ Voted" }).click();
-  await expect(cards(guest, "Keep").filter({ hasText: "Pairing" })).toContainText("1 vote");
-
-  // After the Vote phase the buttons lock but the ranking stays.
-  await page.getByRole("button", { name: "Start Discuss & Act" }).click();
-  await expect(cards(guest, "Keep").first().getByRole("button", { name: "✓ Voted" })).toBeDisabled();
-  await expect(cards(guest, "Keep").first()).toContainText("Pairing");
-
-  // Going back to Vote reopens voting with the votes kept.
+  // Going back to Vote reopens voting with the votes kept (and counts hidden again).
   await page.getByRole("button", { name: "Back to Vote" }).click();
-  await expect(cards(guest, "Keep").first().getByRole("button", { name: "✓ Voted" })).toBeEnabled();
-  await expect(cards(guest, "Keep").first()).toContainText("1 vote");
+  await expect(cards(guest, "Keep").filter({ hasText: "Pairing" }).getByRole("button", { name: "✓ Voted" })).toBeEnabled();
+  await expect(guest.getByRole("region", { name: "Keep" })).not.toContainText(/\d votes?/);
 
   // Going back before Vote warns and deletes all votes.
   await page.getByRole("button", { name: "Back to Brainstorm" }).click();
@@ -62,7 +68,17 @@ test("one vote per column, movable, and columns re-rank live", async ({ page, br
   await page.getByRole("button", { name: "Delete votes & go back" }).click();
   await page.getByRole("button", { name: "Start Vote" }).click();
   await expect(guest.getByLabel("Votes left")).toHaveText("3 of 3 votes left");
-  await expect(cards(guest, "Keep").first()).toContainText("0 votes");
+
+  // Reset also deletes votes, after its own warning.
+  await cards(guest, "Keep").first().getByRole("button", { name: "+ Vote" }).click();
+  await expect(page.getByLabel("Participants")).toContainText("1 has voted");
+  await page.getByRole("button", { name: "Reset" }).click();
+  await expect(page.getByRole("alertdialog", { name: "Confirm reset" })).toContainText("Reset deletes all votes.");
+  await page.getByRole("alertdialog", { name: "Confirm reset" }).getByRole("button", { name: "Reset" }).click();
+  await expect(guest.getByRole("timer")).toContainText("Not started");
+  await page.getByRole("button", { name: "Start Brainstorm" }).click();
+  await page.getByRole("button", { name: "Start Vote" }).click();
+  await expect(guest.getByLabel("Votes left")).toHaveText("3 of 3 votes left");
 
   await guest.context().close();
 });

@@ -34,8 +34,12 @@ test("when everyone may switch, guests control phases too", async ({ page, brows
 
   await guest.getByRole("button", { name: "Start Intro & Pulse" }).click();
   await expect(page.getByRole("timer")).toContainText("Intro & Pulse");
-  await guest.getByRole("button", { name: "End early" }).click();
-  await expect(page.getByRole("timer")).toContainText("Ended");
+  await guest.getByRole("button", { name: "Pause" }).click();
+  await expect(page.getByRole("timer")).toContainText("Paused");
+  await page.getByRole("button", { name: "+1 min" }).click();
+  await expect(guest.getByRole("timer")).toContainText(/Paused0[45]:\d\d/);
+  await page.getByRole("button", { name: "Resume" }).click();
+  await expect(guest.getByRole("timer")).not.toContainText("Paused");
 
   await page.getByRole("button", { name: "Reset" }).click();
   await page.getByRole("button", { name: "Reset" }).click();

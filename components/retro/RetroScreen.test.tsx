@@ -51,6 +51,12 @@ describe("RetroScreen", () => {
     expect(screen.getByText("Loading retro…")).toBeInTheDocument();
   });
 
+  test("a finished retro says what is read-only and who can reopen it", () => {
+    mockRetro({ ...retro, state: "finished" });
+    render(<RetroScreen slug="k7f3q9xa" />);
+    expect(screen.getByText(/ideas and the pulse check are read-only/)).toHaveTextContent("The admin can reopen it with Back.");
+  });
+
   test("shows the pulse check only when the intro phase is enabled", () => {
     mockRetro(retro);
     const { rerender } = render(<RetroScreen slug="k7f3q9xa" />);
@@ -92,7 +98,7 @@ describe("RetroScreen", () => {
     for (const [state, message] of [
       ["vote", "Phase changed to Vote"],
       ["finished", "Retro finished"],
-      ["not_started", "Retro reset · all data kept"],
+      ["not_started", "Retro reset · ideas and actions kept"],
     ]) {
       mockRetro({ ...retro, state });
       rerender(<RetroScreen slug="k7f3q9xa" />);

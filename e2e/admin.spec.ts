@@ -25,7 +25,7 @@ test("admin: auto-login, re-login, agenda times, delete any idea, delete retro l
   await page.getByRole("button", { name: "Log out" }).click();
   await page.getByLabel("Password", { exact: true }).fill("wrong-password");
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Wrong password. 4 attempts left." })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("alert").filter({ hasText: /^Wrong password\.$/ })).toBeVisible({ timeout: 30_000 });
   await page.getByLabel("Password", { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page.getByText("Agenda times", { exact: true })).toBeVisible({ timeout: 30_000 });
@@ -38,6 +38,7 @@ test("admin: auto-login, re-login, agenda times, delete any idea, delete retro l
   // Back on the board the admin deletes the guest's idea.
   await page.getByRole("link", { name: "← Back to retro" }).click();
   await keep(page).filter({ hasText: "Guest idea" }).getByRole("button", { name: "Delete" }).click();
+  await keep(page).filter({ hasText: "Guest idea" }).getByRole("button", { name: "Yes, delete" }).click();
   await expect(guest.getByText("Guest idea")).toHaveCount(0);
 
   // Deleting the retro removes it for the guest in real time.

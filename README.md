@@ -9,9 +9,10 @@ Real-time team retrospectives (Keep / Fix / Try). Participants join via link, no
 ## Features
 
 - Create a retro (name, goal, date, length, facilitator, phases, admin password); share it by link
-- Phases with a synchronized timer: Intro & Pulse → Brainstorm → Vote → Discuss & Act (Back, +1 min, End early, Reset)
+- Phases with a synchronized timer: Intro & Pulse → Brainstorm → Vote → Discuss & Act (Back, +1 min, Pause / Resume, Reset)
 - By default only the admin switches phases; the creator is logged in automatically
-- Anonymous pulse check (1–5), live idea board, one vote per column, action items with owner and optional due date
+- Anonymous pulse check (1–5), live idea board, one vote per column (counts hidden until voting ends), action items with owner, optional due date and done status
+- Summary of a finished retro: copy as Markdown, download as .md, or print as PDF
 - Presence in the phase bar: how many are online, and during Intro / Vote how many have answered / voted
 - Admin area per retro: agenda times, phase control, delete any idea, delete the retro
 
@@ -63,7 +64,7 @@ A pre-push hook blocks pushes whose HEAD is not tagged with the current version.
 
 ## Security notes
 
-- Admin passwords are stored as salted scrypt hashes; 5 failed logins lock the retro's admin login for 15 minutes.
+- Admin passwords are stored as salted scrypt hashes; after 3 failed logins in a row, each further attempt waits longer (10 s up to 2 minutes), so nobody can lock the admin out.
 - The admin session token lives only in an HTTP-only, SameSite=strict cookie; all admin operations run through server actions.
 - Participants are pseudonymous browser IDs; nothing returned to clients reveals who wrote, voted or answered what.
 - Rate limits (`convex/lib/rateLimits.ts`): 60 new retros per hour overall, 60 writes per minute per browser; at most 30 ideas and 20 actions per browser and retro.

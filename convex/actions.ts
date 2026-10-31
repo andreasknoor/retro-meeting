@@ -51,6 +51,7 @@ export const list = query({
       dueDate: v.string(),
       createdAt: v.number(),
       isMine: v.boolean(),
+      done: v.boolean(),
       idea: v.union(v.object({ id: v.id("ideas"), column: columnValidator }), v.null()),
     }),
   ),
@@ -68,6 +69,7 @@ export const list = query({
           dueDate: a.dueDate,
           createdAt: a._creationTime,
           isMine: a.authorId !== undefined && a.authorId === participantId,
+          done: a.done ?? false,
           idea: idea ? { id: idea._id, column: idea.column } : null,
         };
       }),
@@ -116,6 +118,18 @@ export const update = mutation({
     const action = await ctx.db.get("actions", actionId);
     if (!action) throw new ConvexError("This action was deleted.");
     await ctx.db.patch("actions", actionId, cleanFields(input, action.dueDate));
+    return null;
+  },
+});
+
+/** Ticking off works like editing: anyone with the link, in every phase (v1.7). */
+export const setDone = mutation({
+  args: { actionId: v.id("actions"), done: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { actionId, done }) => {
+    const action = await ctx.db.get("actions", actionId);
+    if (!action) throw new ConvexError("This action was deleted.");
+    await ctx.db.patch("actions", actionId, { done });
     return null;
   },
 });

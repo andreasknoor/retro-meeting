@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "./_generated/api";
-import { SESSION_TTL_MS } from "./lib/adminAuth";
+import { MAX_LOGIN_DELAY_SEC, SESSION_TTL_MS } from "./lib/adminAuth";
 import { newTest } from "./test.helpers";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -52,26 +52,40 @@ describe("login", () => {
     expect(JSON.stringify(sessions)).not.toContain(token);
   });
 
-  test("locks out after 5 failed attempts and unlocks after 15 minutes", async () => {
+  test("after 3 failures each attempt waits longer (10 s, 20 s, …), but nobody is locked out", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { login } = await setup();
-    await expect(login("wrong")).rejects.toThrow("Wrong password. 4 attempts left.");
-    await expect(login("wrong")).rejects.toThrow("3 attempts left");
-    await expect(login("wrong")).rejects.toThrow("2 attempts left");
-    await expect(login("wrong")).rejects.toThrow("1 attempt left.");
-    await expect(login("wrong")).rejects.toThrow("Too many failed attempts; try again in 15 minutes.");
-    await expect(login()).rejects.toThrow(/Too many failed attempts. Try again in 15 minutes\./);
+    await expect(login("wrong")).rejects.toThrow(/Wrong password\.$/);
+    await expect(login("wrong")).rejects.toThrow("Wrong password.");
+    await expect(login("wrong")).rejects.toThrow("Wrong password. Please wait 10 seconds before the next try.");
+    await expect(login()).rejects.toThrow(/Too many failed attempts. Try again in 10 seconds\./);
 
-    vi.advanceTimersByTime(14 * 60 * 1000);
-    await expect(login()).rejects.toThrow(/Try again in 1 minute\./);
-    vi.advanceTimersByTime(61 * 1000);
+    vi.advanceTimersByTime(10_000);
+    await expect(login("wrong")).rejects.toThrow("Please wait 20 seconds");
+    vi.advanceTimersByTime(19_000);
+    await expect(login()).rejects.toThrow(/Try again in 1 second\./);
+    vi.advanceTimersByTime(1_000);
+    await expect(login()).resolves.toHaveProperty("token");
+    // A success starts the count from zero.
+    await expect(login("wrong")).rejects.toThrow(/Wrong password\.$/);
+  });
+
+  test("the wait is capped at 2 minutes", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { login } = await setup();
+    for (let i = 0; i < 8; i++) {
+      vi.advanceTimersByTime(MAX_LOGIN_DELAY_SEC * 1000);
+      await expect(login("wrong")).rejects.toThrow("Wrong password");
+    }
+    await expect(login()).rejects.toThrow(/Try again in 120 seconds\./);
+    vi.advanceTimersByTime(MAX_LOGIN_DELAY_SEC * 1000);
     await expect(login()).resolves.toHaveProperty("token");
   });
 
-  test("successful logins do not count towards the lockout", async () => {
+  test("successful logins do not slow down later attempts", async () => {
     const { login } = await setup();
     for (let i = 0; i < 6; i++) await login();
-    await expect(login("wrong")).rejects.toThrow("4 attempts left");
+    await expect(login("wrong")).rejects.toThrow(/Wrong password\.$/);
   });
 
   test("unknown retro", async () => {
@@ -118,9 +132,11 @@ describe("admin operations", () => {
     expect(after.phaseDurationSec).toBe((10 + 1) * 60);
     expect(after.phaseStartedAt).toBe(before.phaseStartedAt);
 
-    await t.mutation(api.phase.endEarly, { slug, from: "brainstorm", token });
+    // While paused, the change goes to the remainder.
+    await t.mutation(api.phase.pause, { slug, from: "brainstorm", token });
+    const paused = (await t.query(api.retros.getBySlug, { slug }))!.pausedRemainingSec!;
     await t.mutation(api.admin.updateAgenda, { slug, token, agenda: { ...agenda, brainstorm: 20 } });
-    expect((await t.query(api.retros.getBySlug, { slug }))!.phaseDurationSec).toBeNull();
+    expect(await t.query(api.retros.getBySlug, { slug })).toMatchObject({ phaseDurationSec: null, pausedRemainingSec: paused + 10 * 60 });
   });
 
   test("switches who controls the phases", async () => {

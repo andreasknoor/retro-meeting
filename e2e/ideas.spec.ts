@@ -42,6 +42,7 @@ test("ideas from three participants appear live in creation order", async ({ pag
   await mobileTab(bob, "Keep");
   await expect(cards(bob, "Keep").nth(0).getByRole("button", { name: "Delete" })).toHaveCount(0);
   await cards(bob, "Keep").nth(1).getByRole("button", { name: "Delete" }).click();
+  await cards(bob, "Keep").nth(1).getByRole("button", { name: "Yes, delete" }).click();
   await mobileTab(page, "Keep");
   await expect(cards(page, "Keep")).toHaveText([/Short stand-ups/, /Friday demos/]);
 

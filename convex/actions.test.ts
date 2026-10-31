@@ -173,3 +173,16 @@ describe("actions.update / remove", () => {
     expect(await t.query(api.actions.list, { slug: "missing1", participantId: ALICE })).toEqual([]);
   });
 });
+
+test("actions.setDone ticks an action off and back, for anyone", async () => {
+  const { t, slug, action } = await setup();
+  const actionId = await t.mutation(api.actions.add, action);
+  const done = async () => (await t.query(api.actions.list, { slug, participantId: BOB }))[0].done;
+  expect(await done()).toBe(false);
+  await t.mutation(api.actions.setDone, { actionId, done: true });
+  expect(await done()).toBe(true);
+  await t.mutation(api.actions.setDone, { actionId, done: false });
+  expect(await done()).toBe(false);
+  await t.run((ctx) => ctx.db.delete("actions", actionId));
+  await expect(t.mutation(api.actions.setDone, { actionId, done: true })).rejects.toThrow("This action was deleted.");
+});

@@ -55,9 +55,11 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
   const [mobileColumn, setMobileColumn] = useState<Column>("keep");
 
   const votingOn = enabledPhases.includes("vote");
-  const byVotes = hasReached(state, enabledPhases, "vote");
-  const composerMuted = state !== "not_started" && state !== "brainstorm";
   const votingOpen = state === "vote";
+  // Counts and ranking only once voting is over, so late voters can't follow the trend (v1.7).
+  const byVotes = hasReached(state, enabledPhases, "vote") && !votingOpen;
+  const finished = state === "finished";
+  const composerMuted = state !== "not_started" && state !== "brainstorm";
   const canMakeAction = canMakeActionFromIdea(state, enabledPhases);
   const votedColumns = new Set(ideas?.filter((i) => i.votedByMe).map((i) => i.column));
 
@@ -98,7 +100,7 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
     <Card className={cn(focusArea(state) === "board" && "ring-2 ring-primary")}>
       <CardHeader>
         <CardTitle className="text-xl">Idea board</CardTitle>
-        <CardDescription>{boardHint(state, votingOn, byVotes)}</CardDescription>
+        <CardDescription>{boardHint(state, votingOn, byVotes, canMakeAction)}</CardDescription>
         {votingOn && (
           <CardAction
             className={cn("flex items-center gap-1.5 text-sm font-bold", votingOpen ? "text-primary" : "text-muted-foreground")}
@@ -160,43 +162,45 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
                   <span className="rounded-full bg-card px-2 text-sm font-semibold text-muted-foreground">{sorted.length}</span>
                 </h3>
                 <p className="mb-3 text-sm text-muted-foreground">{question}</p>
-                <IdeaComposer
-                  column={column}
-                  muted={composerMuted}
-                  initials={initials}
-                  onInitialsChange={setInitials}
-                  onAdd={(text) => add(column, text)}
-                />
+                {!finished && (
+                  <IdeaComposer
+                    column={column}
+                    muted={composerMuted}
+                    initials={initials}
+                    onInitialsChange={setInitials}
+                    onAdd={(text) => add(column, text)}
+                  />
+                )}
                 <ul className="mt-3 grid gap-2.5">
                   {sorted.map((idea) => (
                     <IdeaCard
                       key={idea.id}
                       idea={idea}
                       topLabel={idea === top ? label : null}
-                      onDelete={idea.isMine || onAdminDelete ? () => void remove(idea) : undefined}
+                      onDelete={(idea.isMine && !finished) || onAdminDelete ? () => void remove(idea) : undefined}
+                      deleteWarning={deleteWarning(idea, votingOpen, byVotes)}
                       actions={
-                        <button
-                          type="button"
-                          disabled={!canMakeAction}
-                          title={canMakeAction ? undefined : "Available in the Discuss & Act phase"}
-                          onClick={() => onMakeAction(idea)}
-                          className="text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          Make action
-                        </button>
+                        // Only where it does something; the board hint says when it becomes available.
+                        canMakeAction && (
+                          <button
+                            type="button"
+                            onClick={() => onMakeAction(idea)}
+                            className={cn("text-sm font-semibold text-primary", idea.hasAction && "font-normal text-muted-foreground hover:text-primary")}
+                          >
+                            {idea.hasAction ? "+ Another action" : "Make action"}
+                          </button>
+                        )
                       }
                     >
-                      {votingOn && (
+                      {votingOpen && (
                         <button
                           type="button"
-                          disabled={!votingOpen}
-                          title={votingOpen ? undefined : "Voting opens in the Vote phase"}
                           aria-pressed={idea.votedByMe}
                           onClick={() => void vote(idea)}
                           className={cn(
                             "rounded-full border-[1.5px] px-3 py-0.5 text-sm font-semibold text-muted-foreground transition-colors",
-                            "enabled:hover:border-primary enabled:hover:text-primary disabled:cursor-not-allowed disabled:opacity-50",
-                            idea.votedByMe && "border-primary bg-primary text-primary-foreground enabled:hover:text-primary-foreground",
+                            "hover:border-primary hover:text-primary",
+                            idea.votedByMe && "border-primary bg-primary text-primary-foreground hover:text-primary-foreground",
                           )}
                         >
                           {idea.votedByMe ? "✓ Voted" : "+ Vote"}
@@ -205,6 +209,7 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
                       {votingOn && byVotes && (
                         <span className="text-sm font-bold">
                           {idea.voteCount} {idea.voteCount === 1 ? "vote" : "votes"}
+                          {idea.votedByMe && <span className="ml-1.5 font-normal text-muted-foreground">· incl. yours</span>}
                         </span>
                       )}
                     </IdeaCard>
@@ -222,16 +227,28 @@ export function IdeaBoard({ retro, participantId, onMakeAction, onAdminDelete }:
   );
 }
 
-export function boardHint(state: Retro["state"], votingOn: boolean, byVotes: boolean): string {
+/** Shown in the delete confirmation when other people's votes would go too. */
+function deleteWarning(idea: Idea, votingOpen: boolean, countsVisible: boolean): string | undefined {
+  if (votingOpen) return "Votes on this idea will be lost.";
+  if (countsVisible && idea.voteCount > 0) {
+    return `Its ${idea.voteCount} ${idea.voteCount === 1 ? "vote" : "votes"} will be lost.`;
+  }
+  return undefined;
+}
+
+export function boardHint(state: Retro["state"], votingOn: boolean, byVotes: boolean, canMakeAction = false): string {
+  const makeAction = canMakeAction ? " Use “Make action” to turn an idea into an action." : "";
   if (state === "vote") {
-    return "Voting is open: one vote per column. Tap another idea to move your vote, or tap ✓ Voted to take it back. Ideas added now may miss the votes already cast.";
+    return "Voting is open: one vote per column. Tap another idea to move your vote, or tap ✓ Voted to take it back. Vote counts stay hidden until voting ends. Ideas added now may miss the votes already cast.";
+  }
+  if (state === "finished") {
+    return `${byVotes ? "Each column is ranked by votes. " : ""}The retro is finished, so the board is read-only.${makeAction}`;
   }
   if (byVotes) {
-    return state === "finished"
-      ? "Voting is closed. Each column is ranked by votes."
-      : "Voting is closed. Each column is ranked by votes. New ideas can still be added, but they get no votes.";
+    return `Voting is closed. Each column is ranked by votes. New ideas can still be added, but they get no votes.${makeAction}`;
   }
-  return votingOn
+  const base = votingOn
     ? "Add ideas to any column. Everyone sees them right away. Voting opens in the Vote phase."
     : "Add ideas to any column. Everyone sees them right away.";
+  return `${base}${makeAction}`;
 }

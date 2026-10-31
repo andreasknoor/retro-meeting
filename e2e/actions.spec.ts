@@ -26,7 +26,7 @@ test("free-text actions anytime, Make action only in Discuss, visible to everyon
   await page.getByLabel("New idea for Fix").fill("Flaky tests");
   await page.getByLabel("New idea for Fix").press("Enter");
   const idea = page.getByRole("region", { name: "Fix" }).getByRole("listitem").first();
-  await expect(idea.getByRole("button", { name: "Make action" })).toBeDisabled();
+  await expect(idea.getByRole("button", { name: "Make action" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Start Brainstorm" }).click();
   await page.getByRole("button", { name: "Start Discuss & Act" }).click();
@@ -44,6 +44,16 @@ test("free-text actions anytime, Make action only in Discuss, visible to everyon
   await expect(actionList(guest).getByRole("listitem")).toHaveText([/Quarantine flaky tests.*from Fix.*Alex.*15\.11\.2099/, /Book a demo slot.*Sam.*20\.12\.2099/]);
   await showColumn(guest, "Fix");
   await expect(guest.getByRole("region", { name: "Fix" })).toContainText("→ Action");
+
+  // Another action from the same idea is possible, but the form names the existing one.
+  await idea.getByRole("button", { name: "+ Another action" }).click();
+  await expect(actionForm(page)).toContainText("This idea already has an action: “Quarantine flaky tests”");
+  await actionForm(page).getByRole("button", { name: "Unlink idea" }).click();
+  await actionForm(page).getByLabel("Action").fill("");
+
+  // Anyone can tick an action off.
+  await actionList(guest).getByRole("checkbox", { name: "Done: Book a demo slot" }).check();
+  await expect(actionList(page).getByRole("checkbox", { name: "Done: Book a demo slot" })).toBeChecked();
 
   // The guest edits the owner.
   await actionList(guest).getByRole("listitem").first().getByRole("button", { name: "Edit" }).click();

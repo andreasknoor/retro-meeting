@@ -16,7 +16,7 @@ import type { Retro } from "./types";
 
 type Props = {
   retro: Retro;
-  /** Whether anyone has voted; going back before the Vote phase then needs a confirmation. */
+  /** Whether anyone has voted; going back before the Vote phase or resetting then needs a confirmation. */
   hasVotes: boolean;
   /** Whether this browser holds an admin session for the retro. */
   isAdmin: boolean;
@@ -48,6 +48,7 @@ export function PhaseBar({ retro, hasVotes, isAdmin, onAdminLogin, children }: P
   const next = nextState(state, retro.enabledPhases);
   const previous = previousPhase(state, retro.enabledPhases);
   const running = retro.phaseStartedAt !== null;
+  const inPhase = state !== "not_started" && state !== "finished";
 
   return (
     <div className="z-10 border-b bg-card shadow-sm md:sticky md:top-0">
@@ -112,14 +113,18 @@ export function PhaseBar({ retro, hasVotes, isAdmin, onAdminLogin, children }: P
               </Button>
             </span>
           ) : confirmReset ? (
-            <span className="flex items-center gap-2 rounded-full bg-destructive/10 py-1 pr-1 pl-3 text-sm font-semibold text-destructive">
-              Reset phases? Data is kept.
+            <span
+              role="alertdialog"
+              aria-label="Confirm reset"
+              className="flex flex-wrap items-center gap-2 rounded-2xl bg-destructive/10 py-1 pr-1 pl-3 text-sm font-semibold text-destructive"
+            >
+              {hasVotes ? "Reset deletes all votes. Ideas, pulse answers and actions stay." : "Reset phases? Data is kept."}
               <Button
                 size="sm"
                 variant="destructive"
                 onClick={() => {
                   setConfirmReset(false);
-                  void run("reset");
+                  void run("reset", hasVotes ? { discardVotes: true } : undefined);
                 }}
               >
                 Reset
@@ -133,7 +138,6 @@ export function PhaseBar({ retro, hasVotes, isAdmin, onAdminLogin, children }: P
               <Button
                 variant="outline"
                 disabled={previous === null}
-                title={previous ? `Back to ${PHASE_LABELS[previous]}` : undefined}
                 aria-label={previous ? `Back to ${PHASE_LABELS[previous]}` : "Back"}
                 onClick={back}
               >
@@ -144,11 +148,11 @@ export function PhaseBar({ retro, hasVotes, isAdmin, onAdminLogin, children }: P
                   {next === "finished" ? "Finish retro" : `Start ${PHASE_LABELS[next as keyof typeof PHASE_LABELS]}`}
                 </Button>
               )}
-              <Button variant="outline" disabled={!running} onClick={() => void run("extend")}>
+              <Button variant="outline" disabled={!inPhase} onClick={() => void run("extend")}>
                 +1 min
               </Button>
-              <Button variant="outline" disabled={!running} onClick={() => void run("endEarly")}>
-                End early
+              <Button variant="outline" disabled={!inPhase} onClick={() => void run(running ? "pause" : "resume")}>
+                {running || !inPhase ? "Pause" : "Resume"}
               </Button>
               <Button variant="link" disabled={state === "not_started"} onClick={() => setConfirmReset(true)}>
                 Reset
@@ -220,7 +224,7 @@ function PhaseTimer({ retro }: { retro: Retro }) {
 
   let label: string;
   let value: string;
-  let tone: "idle" | "running" | "over" = "idle";
+  let tone: "idle" | "running" | "over" | "paused" = "idle";
   if (state === "not_started") {
     label = "Not started";
     value = formatClock(retro.agenda[phases[0]] * 60);
@@ -228,8 +232,10 @@ function PhaseTimer({ retro }: { retro: Retro }) {
     label = "Finished";
     value = "00:00";
   } else if (phaseStartedAt === null || phaseDurationSec === null) {
-    label = PHASE_LABELS[state];
-    value = "Ended";
+    // Paused; retros stopped with the old "End early" have no remainder and show 00:00.
+    label = `${PHASE_LABELS[state]} · Paused`;
+    value = formatClock(retro.pausedRemainingSec ?? 0);
+    tone = (retro.pausedRemainingSec ?? 0) < 0 ? "over" : "paused";
   } else {
     label = PHASE_LABELS[state];
     const left = remainingSec(phaseStartedAt, phaseDurationSec, now);
@@ -243,7 +249,7 @@ function PhaseTimer({ retro }: { retro: Retro }) {
       <span
         className={cn(
           "text-3xl font-bold tabular-nums",
-          tone === "idle" && "text-muted-foreground/70",
+          (tone === "idle" || tone === "paused") && "text-muted-foreground/70",
           tone === "over" && "text-destructive",
         )}
       >

@@ -39,6 +39,8 @@ export default defineSchema({
     state: stateValidator,
     phaseStartedAt: v.optional(v.number()),
     phaseDurationSec: v.optional(v.number()),
+    // Set while the timer is paused (v1.7): seconds left, negative in overtime.
+    pausedRemainingSec: v.optional(v.number()),
     // Only the admin may switch phases. Missing on retros created before v0.11 = anyone may.
     adminControlsPhases: v.optional(v.boolean()),
     passwordHash: v.string(),
@@ -81,6 +83,7 @@ export default defineSchema({
     dueDate: v.string(), // ISO date; "" = no due date (optional since v1.5)
     // Participant who added it; may delete it (besides the admin). Missing on actions before v1.3.
     authorId: v.optional(v.string()),
+    done: v.optional(v.boolean()), // ticked off (v1.7); missing = open
   })
     .index("by_retroId", ["retroId"])
     .index("by_retroId_and_authorId", ["retroId", "authorId"])

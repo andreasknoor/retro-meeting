@@ -19,6 +19,7 @@ const publicRetroValidator = v.object({
   state: stateValidator,
   phaseStartedAt: v.union(v.number(), v.null()),
   phaseDurationSec: v.union(v.number(), v.null()),
+  pausedRemainingSec: v.union(v.number(), v.null()),
   adminControlsPhases: v.boolean(),
 });
 
@@ -36,6 +37,7 @@ function toPublic(r: Doc<"retros">) {
     state: r.state,
     phaseStartedAt: r.phaseStartedAt ?? null,
     phaseDurationSec: r.phaseDurationSec ?? null,
+    pausedRemainingSec: r.pausedRemainingSec ?? null,
     adminControlsPhases: r.adminControlsPhases ?? false,
   };
 }

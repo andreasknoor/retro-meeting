@@ -22,10 +22,16 @@ async function setup({ startVoting = true } = {}) {
     }
   }
   const toggle = (ideaId: Id<"ideas">, participantId = ALICE) => t.mutation(api.votes.toggle, { ideaId, participantId });
-  const view = async (participantId = ALICE) =>
-    Object.fromEntries(
-      (await t.query(api.ideas.list, { slug, participantId })).map((i) => [i.text, [i.voteCount, i.votedByMe]]),
+  // Counts are hidden in ideas.list while voting, so they come straight from the votes here.
+  const view = async (participantId = ALICE) => {
+    const votes = await t.run((ctx) => ctx.db.query("votes").collect());
+    return Object.fromEntries(
+      (await t.query(api.ideas.list, { slug, participantId })).map((i) => [
+        i.text,
+        [votes.filter((v) => v.ideaId === i.id).length, i.votedByMe],
+      ]),
     );
+  };
   return { t, slug, k1, k2, f1, toggle, view };
 }
 
@@ -88,6 +94,16 @@ describe("votes.toggle", () => {
     expect(await toggle(k2)).toBe("cast");
     expect(await view()).toMatchObject({ K2: [1, true] });
   });
+});
+
+test("ideas.list hides vote counts during the Vote phase and shows them after", async () => {
+  const { t, slug, k1, toggle } = await setup();
+  await toggle(k1);
+  await toggle(k1, BOB);
+  const counts = async () => (await t.query(api.ideas.list, { slug, participantId: ALICE })).map((i) => [i.voteCount, i.votedByMe]);
+  expect(await counts()).toEqual([[0, true], [0, false], [0, false]]);
+  await t.mutation(api.phase.startNext, { slug, from: "vote" });
+  expect(await counts()).toEqual([[2, true], [0, false], [0, false]]);
 });
 
 describe("votes.voterCount", () => {

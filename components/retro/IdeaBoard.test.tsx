@@ -68,6 +68,11 @@ beforeEach(() => {
 });
 
 const column = (name: string) => screen.getByRole("region", { name });
+/** Delete asks inline first. */
+async function deleteIn(user: ReturnType<typeof userEvent.setup>, scope: HTMLElement, index = 0) {
+  await user.click(within(scope).getAllByRole("button", { name: "Delete" })[index]);
+  await user.click(within(scope).getByRole("button", { name: "Yes, delete" }));
+}
 const texts = (name: string) =>
   within(column(name))
     .queryAllByRole("listitem")
@@ -121,6 +126,10 @@ describe("IdeaBoard", () => {
     render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     expect(within(column("Keep")).queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
     await user.click(within(column("Fix")).getByRole("button", { name: "Delete" }));
+    expect(within(column("Fix")).getByRole("group", { name: "Confirm delete" })).toHaveTextContent(/^Delete for everyone\?/);
+    await user.click(within(column("Fix")).getByRole("button", { name: "Cancel" }));
+    expect(remove).not.toHaveBeenCalled();
+    await deleteIn(user, column("Fix"));
     expect(remove).toHaveBeenCalledWith({ ideaId: "i3", participantId: "me-000000" });
     expect(toast).toHaveBeenCalledWith("Idea deleted");
   });
@@ -129,7 +138,7 @@ describe("IdeaBoard", () => {
     const user = userEvent.setup();
     remove.mockRejectedValueOnce(new ConvexError("Only the author can delete this idea."));
     render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
-    await user.click(within(column("Fix")).getByRole("button", { name: "Delete" }));
+    await deleteIn(user, column("Fix"));
     expect(toast.error).toHaveBeenCalledWith("Only the author can delete this idea.");
   });
 
@@ -180,7 +189,7 @@ describe("IdeaBoard", () => {
     render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
     await user.type(screen.getByLabelText("New idea for Fix"), "Oops{Enter}");
     expect(toast.error).toHaveBeenCalledWith("Could not add the idea.");
-    await user.click(within(column("Fix")).getByRole("button", { name: "Delete" }));
+    await deleteIn(user, column("Fix"));
     expect(toast.error).toHaveBeenCalledWith("Could not delete the idea.");
   });
 
@@ -217,22 +226,23 @@ describe("IdeaBoard", () => {
 describe("voting", () => {
   const voteButton = (col: string, n: number) => within(column(col)).getAllByRole("button", { name: /Vote/ })[n];
 
-  test("before the Vote phase the buttons are disabled and counts hidden", () => {
+  test("before the Vote phase there are no vote buttons and no counts", () => {
     render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
-    expect(voteButton("Keep", 0)).toBeDisabled();
-    expect(screen.queryByText(/\d votes?$/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Vote/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^\d+ votes?/)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Votes left")).toHaveClass("text-muted-foreground");
   });
 
-  test("during the Vote phase: vote, see counts and votes left", async () => {
+  test("during the Vote phase: vote and see votes left, but no counts and creation order", async () => {
     const user = userEvent.setup();
     toggle.mockResolvedValue("cast");
     render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" onMakeAction={makeAction} />);
     expect(screen.getByLabelText("Votes left")).toHaveTextContent("2 of 3 votes left");
-    expect(within(column("Keep")).getByText("4 votes")).toBeInTheDocument();
-    expect(within(column("Keep")).getByText("1 vote")).toBeInTheDocument();
-    expect(voteButton("Keep", 0)).toHaveTextContent("✓ Voted");
-    expect(voteButton("Keep", 0)).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText(/^\d+ votes?/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Top in/)).not.toBeInTheDocument();
+    expect(texts("Keep")).toEqual(["Short stand-ups", "Pairing"]);
+    expect(voteButton("Keep", 1)).toHaveTextContent("✓ Voted");
+    expect(voteButton("Keep", 1)).toHaveAttribute("aria-pressed", "true");
 
     await user.click(voteButton("Fix", 0));
     expect(toggle).toHaveBeenCalledWith({ ideaId: "i3", participantId: "me-000000" });
@@ -252,15 +262,22 @@ describe("voting", () => {
     expect(toast.error).toHaveBeenCalledWith("Could not vote.");
   });
 
+  test("after voting: counts, ranking and your own vote", () => {
+    render(<IdeaBoard retro={{ ...retro, state: "discuss" }} participantId="me-000000" onMakeAction={makeAction} />);
+    expect(screen.queryByRole("button", { name: /Vote/ })).not.toBeInTheDocument();
+    expect(within(column("Keep")).getByText(/^4 votes/)).toHaveTextContent("4 votes· incl. yours");
+    expect(within(column("Keep")).getByText("1 vote")).toBeInTheDocument();
+  });
+
   test("the optimistic update moves the vote", () => {
     render(<IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" onMakeAction={makeAction} />);
     const store = { getQuery: vi.fn(() => IDEAS), setQuery: vi.fn() };
     optimisticVote(store, { ideaId: "i1", participantId: "me-000000" });
     const next = store.setQuery.mock.calls[0][2] as Idea[];
-    expect(next.map((i) => [i.id, i.voteCount, i.votedByMe])).toEqual([
-      ["i1", 2, true],
-      ["i2", 3, false],
-      ["i3", 0, false],
+    expect(next.map((i) => [i.id, i.votedByMe])).toEqual([
+      ["i1", true],
+      ["i2", false],
+      ["i3", false],
     ]);
     store.getQuery.mockReturnValue(undefined as never);
     optimisticVote(store, { ideaId: "i1", participantId: "me-000000" });
@@ -280,24 +297,23 @@ describe("admin delete", () => {
     const user = userEvent.setup();
     const onAdminDelete = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("Your admin session has expired. Please log in again.");
     render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} onAdminDelete={onAdminDelete} />);
-    const keepDeletes = within(column("Keep")).getAllByRole("button", { name: "Delete" });
-    expect(keepDeletes).toHaveLength(2);
-    await user.click(keepDeletes[0]);
+    expect(within(column("Keep")).getAllByRole("button", { name: "Delete" })).toHaveLength(2);
+    await deleteIn(user, column("Keep"), 0);
     expect(onAdminDelete).toHaveBeenCalledWith(expect.objectContaining({ id: "i1" }));
     expect(remove).not.toHaveBeenCalled();
     expect(toast).toHaveBeenCalledWith("Idea deleted");
-    await user.click(keepDeletes[1]);
+    await deleteIn(user, column("Keep"), 1);
     expect(toast.error).toHaveBeenCalledWith("Your admin session has expired. Please log in again.");
     // Own ideas still use the participant path.
-    await user.click(within(column("Fix")).getByRole("button", { name: "Delete" }));
+    await deleteIn(user, column("Fix"));
     expect(remove).toHaveBeenCalledWith({ ideaId: "i3", participantId: "me-000000" });
   });
 });
 
 describe("make action", () => {
-  test("is disabled outside Discuss", () => {
+  test("is not shown outside Discuss", () => {
     render(<IdeaBoard retro={retro} participantId="me-000000" onMakeAction={makeAction} />);
-    for (const b of screen.getAllByRole("button", { name: "Make action" })) expect(b).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /action/ })).not.toBeInTheDocument();
   });
 
   test("hands the idea over during Discuss and shows the action badge", async () => {
@@ -307,6 +323,35 @@ describe("make action", () => {
     await user.click(within(column("Keep")).getAllByRole("button", { name: "Make action" })[0]);
     expect(makeAction).toHaveBeenCalledWith(expect.objectContaining({ id: "i2", text: "Pairing" }));
     expect(within(column("Fix")).getByText("→ Action")).toBeInTheDocument();
+    // An idea that already has an action offers a less prominent "+ Another action".
+    expect(within(column("Fix")).queryByRole("button", { name: "Make action" })).not.toBeInTheDocument();
+    await user.click(within(column("Fix")).getByRole("button", { name: "+ Another action" }));
+    expect(makeAction).toHaveBeenLastCalledWith(expect.objectContaining({ id: "i3" }));
+  });
+});
+
+describe("delete warnings and read-only after finish", () => {
+  test("warns that votes will be lost", async () => {
+    const user = userEvent.setup();
+    const onAdminDelete = vi.fn().mockResolvedValue(null);
+    const { rerender } = render(
+      <IdeaBoard retro={{ ...retro, state: "vote" }} participantId="me-000000" onMakeAction={makeAction} onAdminDelete={onAdminDelete} />,
+    );
+    await user.click(within(column("Keep")).getAllByRole("button", { name: "Delete" })[0]);
+    expect(within(column("Keep")).getByRole("group")).toHaveTextContent("Delete for everyone? Votes on this idea will be lost.");
+    rerender(<IdeaBoard retro={{ ...retro, state: "discuss" }} participantId="me-000000" onMakeAction={makeAction} onAdminDelete={onAdminDelete} />);
+    // Counts are visible again, so the warning names them.
+    expect(within(column("Keep")).getByRole("group")).toHaveTextContent("Delete for everyone? Its 1 vote will be lost.");
+  });
+
+  test("finished: no composer and authors can't delete, the admin still can", () => {
+    const finished = { ...retro, state: "finished" as const };
+    const { rerender } = render(<IdeaBoard retro={finished} participantId="me-000000" onMakeAction={makeAction} />);
+    expect(screen.queryByLabelText("New idea for Keep")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.getByText(/the board is read-only/)).toBeInTheDocument();
+    rerender(<IdeaBoard retro={finished} participantId="me-000000" onMakeAction={makeAction} onAdminDelete={vi.fn()} />);
+    expect(screen.getAllByRole("button", { name: "Delete" })).toHaveLength(3);
   });
 });
 
@@ -316,5 +361,8 @@ test("boardHint", () => {
   expect(boardHint("vote", true, true)).toMatch(/Voting is open/);
   expect(boardHint("discuss", true, true)).toMatch(/Voting is closed.*can still be added, but they get no votes/);
   expect(boardHint("finished", true, true)).not.toMatch(/can still be added/);
-  expect(boardHint("vote", true, true)).toMatch(/Ideas added now may miss the votes already cast/);
+  expect(boardHint("vote", true, false)).toMatch(/Ideas added now may miss the votes already cast/);
+  expect(boardHint("vote", true, false)).toMatch(/Vote counts stay hidden until voting ends/);
+  expect(boardHint("discuss", true, true, true)).toMatch(/Use “Make action” to turn an idea into an action/);
+  expect(boardHint("brainstorm", true, false, false)).not.toMatch(/Make action/);
 });

@@ -18,14 +18,16 @@ import { PhaseBar } from "./PhaseBar";
 import { PresenceStatus } from "./PresenceStatus";
 import { PulseCard } from "./PulseCard";
 import { RetroHeader } from "./RetroHeader";
+import { SummaryCard } from "./SummaryCard";
 import type { ActionDraft, Retro } from "./types";
 
 export function RetroScreen({ slug }: { slug: string }) {
   const retro = useQuery(api.retros.getBySlug, { slug });
   const participantId = useParticipantId();
-  // Same subscription as the idea board's; tells the phase bar whether going back discards votes.
-  const ideas = useQuery(api.ideas.list, participantId ? { slug, participantId } : "skip");
-  const hasVotes = ideas?.some((idea) => idea.voteCount > 0) ?? false;
+  // Tells the phase bar whether Back or Reset discards votes. Not from ideas.list: its counts are
+  // hidden while voting. Shared with the presence status.
+  const voters = useQuery(api.votes.voterCount, { slug });
+  const hasVotes = (voters ?? 0) > 0;
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
   const [admin, setAdmin] = useAdminStatus(slug);
 
@@ -46,6 +48,13 @@ export function RetroScreen({ slug }: { slug: string }) {
         {participantId && <PresenceStatus retro={retro} participantId={participantId} />}
       </PhaseBar>
       <main className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6">
+        {retro.state === "finished" && (
+          <p role="status" className="rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+            Retro finished: ideas and the pulse check are read-only; actions can still be edited and ticked off.{" "}
+            {retro.adminControlsPhases && !admin ? "The admin can reopen it with Back." : "Use ← Back to reopen it."}
+          </p>
+        )}
+        {participantId && retro.state === "finished" && <SummaryCard retro={retro} participantId={participantId} />}
         <div className="grid gap-5 lg:grid-cols-[1fr_1.25fr]">
           <AgendaCard retro={retro} />
           {participantId && retro.enabledPhases.includes("intro") && (
@@ -122,7 +131,7 @@ function usePhaseChangeToast(state: Retro["state"] | undefined) {
     previous.current = state;
     if (before === undefined || state === undefined || before === state) return;
     if (state === "finished") toast("Retro finished");
-    else if (state === "not_started") toast("Retro reset · all data kept");
+    else if (state === "not_started") toast("Retro reset · ideas and actions kept");
     else toast(`Phase changed to ${PHASE_LABELS[state]}`);
   }, [state]);
 }

@@ -22,6 +22,8 @@ test("realtime traffic contains no secrets or other participants' ids", async ({
   await guest.getByRole("button", { name: "Start Brainstorm" }).click();
   await guest.getByRole("button", { name: "Start Vote" }).click();
   await page.getByRole("region", { name: "Keep" }).getByRole("button", { name: "+ Vote" }).click();
+  await expect(guest.getByLabel("Participants")).toContainText("1 has voted");
+  await guest.getByRole("button", { name: "Start Discuss & Act" }).click();
   await expect(guest.getByRole("region", { name: "Keep" })).toContainText("1 vote");
 
   const traffic = frames.join("\n");

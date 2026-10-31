@@ -4,8 +4,19 @@ import type { QueryCtx } from "../_generated/server";
 import { findRetro } from "./retroAccess";
 
 export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
-export const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
-export const MAX_FAILED_ATTEMPTS = 5;
+// Failed logins slow down instead of locking (v1.7): a lock let anyone with the link shut the
+// admin out. Failures in a row (since the last success, within the window) beyond the free ones
+// make the next attempt wait 10 s, 20 s, 40 s, … up to 2 minutes.
+export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+export const FREE_FAILED_ATTEMPTS = 3;
+const FIRST_DELAY_SEC = 10;
+export const MAX_LOGIN_DELAY_SEC = 120;
+
+/** Seconds the next attempt has to wait after `failures` failed attempts in a row. */
+export function loginDelaySec(failures: number): number {
+  if (failures < FREE_FAILED_ATTEMPTS) return 0;
+  return Math.min(MAX_LOGIN_DELAY_SEC, FIRST_DELAY_SEC * 2 ** (failures - FREE_FAILED_ATTEMPTS));
+}
 
 /** Hex SHA-256 via Web Crypto (available in the Convex runtime, unlike node:crypto). */
 export async function sha256Hex(value: string): Promise<string> {

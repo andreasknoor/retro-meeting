@@ -4,6 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { MAX_ACTIONS } from "./actions";
 import { IDEA_LIMITS, normalizeInitials } from "./lib/columns";
+import { FINISHED_MESSAGE } from "./lib/phases";
 import { enforce } from "./lib/rateLimits";
 import { assertParticipantId, findRetro, getRetroOrThrow } from "./lib/retroAccess";
 import { columnValidator } from "./schema";
@@ -26,7 +27,11 @@ const ideaValidator = v.object({
   hasAction: v.boolean(),
 });
 
-/** All ideas of a retro in creation order; the author is reduced to `isMine` (§6 privacy rules). */
+/**
+ * All ideas of a retro in creation order; the author is reduced to `isMine` (§6 privacy rules).
+ * During the Vote phase every `voteCount` is 0, so late voters can't follow the trend (v1.7);
+ * whether anyone voted at all comes from votes.voterCount.
+ */
 export const list = query({
   args: { slug: v.string(), participantId: v.string() },
   returns: v.array(ideaValidator),
@@ -53,12 +58,13 @@ export const list = query({
       .withIndex("by_retroId", (q) => q.eq("retroId", retro._id))
       .take(MAX_ACTIONS);
     const ideasWithAction = new Set(actions.map((a) => a.ideaId));
+    const countsVisible = retro.state !== "vote";
     return ideas.map((idea) => ({
       id: idea._id,
       column: idea.column,
       text: idea.text,
       initials: idea.initials ?? null,
-      voteCount: counts.get(idea._id) ?? 0,
+      voteCount: countsVisible ? (counts.get(idea._id) ?? 0) : 0,
       createdAt: idea._creationTime,
       isMine: idea.authorId === participantId,
       votedByMe: votedIds.has(idea._id),
@@ -67,7 +73,7 @@ export const list = query({
   },
 });
 
-/** Ideas can be added in every phase (§4.5 default). */
+/** Ideas can be added in every phase (§4.5 default) until the retro is finished (v1.7). */
 export const add = mutation({
   args: {
     slug: v.string(),
@@ -87,6 +93,7 @@ export const add = mutation({
       throw new ConvexError(`Initials can have at most ${IDEA_LIMITS.initials} characters.`);
 
     const retro = await getRetroOrThrow(ctx, args.slug);
+    if (retro.state === "finished") throw new ConvexError(FINISHED_MESSAGE);
     const mine = await ctx.db
       .query("ideas")
       .withIndex("by_retroId_and_authorId", (q) => q.eq("retroId", retro._id).eq("authorId", args.participantId))
@@ -105,7 +112,7 @@ export const add = mutation({
   },
 });
 
-/** Only the author can delete their idea here; admins use the admin variant (M7). */
+/** Only the author can delete their idea here, and not once the retro is finished; admins use the admin variant (M7). */
 export const remove = mutation({
   args: { ideaId: v.id("ideas"), participantId: v.string() },
   returns: v.null(),
@@ -113,6 +120,7 @@ export const remove = mutation({
     const idea = await ctx.db.get("ideas", ideaId);
     if (!idea) return null;
     if (idea.authorId !== participantId) throw new ConvexError("Only the author can delete this idea.");
+    if ((await ctx.db.get("retros", idea.retroId))?.state === "finished") throw new ConvexError(FINISHED_MESSAGE);
     await deleteIdea(ctx, ideaId);
     return null;
   },

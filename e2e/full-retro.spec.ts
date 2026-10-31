@@ -54,13 +54,13 @@ test("a complete retro with three participants through all phases", async ({ pag
   await vote(carol, "Keep", "Pairing on bugs");
   await vote(bob, "Fix", "Flaky tests");
   await expect(carol.getByLabel("Participants")).toHaveText("3 online· 3 have voted");
+
+  // 4) Discuss: counts and ranking appear; the top idea becomes an action; Bob adds a free-text action
+  await alex.getByRole("button", { name: "Start Discuss & Act" }).click();
   await showColumn(alex, "Keep");
   await expect(cards(alex, "Keep").first()).toContainText("Top in Keep");
   await expect(cards(alex, "Keep").first()).toContainText("Pairing on bugs");
   await expect(cards(alex, "Keep").first()).toContainText("2 votes");
-
-  // 4) Discuss: the top idea becomes an action; Bob adds a free-text action
-  await alex.getByRole("button", { name: "Start Discuss & Act" }).click();
   await cards(alex, "Keep").first().getByRole("button", { name: "Make action" }).click();
   const form = (p: Page) => p.getByRole("form", { name: "New action" });
   await form(alex).getByLabel("Owner").fill("Alex");
@@ -80,6 +80,20 @@ test("a complete retro with three participants through all phases", async ({ pag
       /Pairing on bugs.*from Keep.*Alex.*15\.11\.2099/,
     ]);
   }
+
+  // 6) Read-only board and pulse, plus the summary to take away; actions can still be ticked off
+  await expect(bob.getByText(/ideas and the pulse check are read-only/)).toBeVisible();
+  await expect(bob.getByLabel("New idea for Keep")).toHaveCount(0);
+  await expect(bob.getByRole("button", { name: /^5\s*Great$/ })).toBeDisabled();
+  await bob.getByRole("checkbox", { name: "Done: Fix the flaky checkout test" }).check();
+  const summary = carol.locator("#retro-summary");
+  await expect(summary.getByLabel("Pulse result")).toContainText("Average 4.0 from 3 answers");
+  await showColumn(carol, "Keep");
+  await expect(summary.getByLabel("Top ideas")).toContainText("Keep: Pairing on bugs (2)");
+  await expect(summary.getByLabel("Action summary")).toContainText("☑ Fix the flaky checkout test — Bob, due 10.11.2099");
+  const download = carol.waitForEvent("download");
+  await summary.getByRole("button", { name: "Download .md" }).click();
+  expect((await download).suggestedFilename()).toMatch(/^\d{4}-\d{2}-\d{2}-e2e-.*\.md$/);
 
   await bob.context().close();
   await carol.context().close();

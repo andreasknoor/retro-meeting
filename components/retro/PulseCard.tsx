@@ -22,6 +22,7 @@ export function PulseCard({ retro, participantId }: { retro: Retro; participantI
   });
 
   const mine = summary?.mine ?? null;
+  const readOnly = retro.state === "finished";
   const max = Math.max(1, ...(summary?.counts ?? []));
 
   return (
@@ -43,9 +44,10 @@ export function PulseCard({ retro, participantId }: { retro: Retro; participantI
                 key={score}
                 type="button"
                 aria-pressed={mine === score}
+                disabled={readOnly}
                 onClick={() => void answer({ slug, participantId, score })}
                 className={cn(
-                  "rounded-xl border-[1.5px] bg-card px-1 py-3 text-center transition-colors hover:border-primary",
+                  "rounded-xl border-[1.5px] bg-card px-1 py-3 text-center transition-colors enabled:hover:border-primary disabled:cursor-not-allowed",
                   mine === score && "border-primary bg-primary text-primary-foreground",
                 )}
               >
@@ -57,7 +59,9 @@ export function PulseCard({ retro, participantId }: { retro: Retro; participantI
             ))}
           </div>
           <p className="mt-2.5 text-sm text-muted-foreground">
-            One answer per person, anonymous. Tap another number to change yours.
+            {readOnly
+              ? "The retro is finished, so answers can no longer change."
+              : "One answer per person, anonymous. Tap another number to change yours."}
           </p>
         </div>
 

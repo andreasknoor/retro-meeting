@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { FINISHED_MESSAGE } from "./lib/phases";
 import { isScore, MAX_PULSE_ANSWERS, resultsVisible, summarize } from "./lib/pulse";
 import { enforce } from "./lib/rateLimits";
 import { assertParticipantId, findRetro, getRetroOrThrow } from "./lib/retroAccess";
@@ -41,7 +42,7 @@ export const summary = query({
   },
 });
 
-/** One answer per participant; answering again changes it. */
+/** One answer per participant; answering again changes it, until the retro is finished (v1.7). */
 export const answer = mutation({
   args: { slug: v.string(), participantId: v.string(), score: v.number() },
   returns: v.null(),
@@ -50,6 +51,7 @@ export const answer = mutation({
     if (!isScore(score)) throw new ConvexError("Score must be 1 to 5.");
     const retro = await getRetroOrThrow(ctx, slug);
     if (!retro.enabledPhases.includes("intro")) throw new ConvexError("This retro has no pulse check.");
+    if (retro.state === "finished") throw new ConvexError(FINISHED_MESSAGE);
     await enforce(ctx, "participantWrites", participantId);
 
     const existing = await ctx.db

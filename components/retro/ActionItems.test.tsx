@@ -12,22 +12,26 @@ import type { ActionDraft, ActionItem, Retro } from "./types";
 vi.mock("convex/react", () => ({ useQuery: vi.fn(), useMutation: vi.fn() }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
 
-const mutations = { "actions:add": vi.fn(), "actions:update": vi.fn(), "actions:remove": vi.fn() };
+const mutations = { "actions:add": vi.fn(), "actions:update": vi.fn(), "actions:remove": vi.fn(), "actions:setDone": vi.fn() };
 const ME = "me-000000";
 const retro = { slug: "k7f3q9xa" } as Retro;
 const ACTIONS = [
-  { id: "a1", text: "Quarantine flaky tests", owner: "Alex", dueDate: "2026-11-05", createdAt: 1, isMine: true, idea: { id: "i3", column: "fix" } },
-  { id: "a2", text: "Book a demo slot", owner: "Sam", dueDate: "2026-11-20", createdAt: 2, isMine: false, idea: null },
+  { id: "a1", text: "Quarantine flaky tests", owner: "Alex", dueDate: "2026-11-05", createdAt: 1, isMine: true, done: false, idea: { id: "i3", column: "fix" } },
+  { id: "a2", text: "Book a demo slot", owner: "Sam", dueDate: "2026-11-20", createdAt: 2, isMine: false, done: true, idea: null },
 ] as ActionItem[];
 const draft: ActionDraft = { requestId: 1, ideaId: "i9" as ActionDraft["ideaId"], text: "Pre-reads before planning", column: "try" };
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(useQuery).mockReturnValue(ACTIONS);
-  vi.mocked(useMutation).mockImplementation(((ref: never) => mutations[getFunctionName(ref) as keyof typeof mutations]) as never);
+  vi.mocked(useMutation).mockImplementation(((ref: never) => {
+    const fn = mutations[getFunctionName(ref) as keyof typeof mutations];
+    return Object.assign(fn, { withOptimisticUpdate: () => fn });
+  }) as never);
   mutations["actions:add"].mockResolvedValue("new");
   mutations["actions:update"].mockResolvedValue(null);
   mutations["actions:remove"].mockResolvedValue(null);
+  mutations["actions:setDone"].mockResolvedValue(null);
 });
 
 const form = () => screen.getByRole("form", { name: "New action" });
@@ -37,6 +41,32 @@ async function fill(user: ReturnType<typeof userEvent.setup>, text: string | nul
   await user.type(within(form()).getByLabelText("Owner"), owner);
   await user.type(within(form()).getByLabelText("Due date"), due);
 }
+
+describe("done status and existing actions", () => {
+  test("ticks actions off and back; done ones are struck through", async () => {
+    const user = userEvent.setup();
+    render(<ActionItems participantId={ME} retro={retro} draft={null} onClearDraft={vi.fn()} />);
+    const open = screen.getByRole("checkbox", { name: "Done: Quarantine flaky tests" });
+    const done = screen.getByRole("checkbox", { name: "Done: Book a demo slot" });
+    expect(open).not.toBeChecked();
+    expect(done).toBeChecked();
+    expect(screen.getByText("Book a demo slot")).toHaveClass("line-through");
+    await user.click(open);
+    expect(mutations["actions:setDone"]).toHaveBeenCalledWith({ actionId: "a1", done: true });
+    await user.click(done);
+    expect(mutations["actions:setDone"]).toHaveBeenLastCalledWith({ actionId: "a2", done: false });
+  });
+
+  test("Make action on an idea that already has an action names it", () => {
+    render(<ActionItems participantId={ME} retro={retro} draft={{ ...draft, ideaId: "i3" as ActionDraft["ideaId"] }} onClearDraft={vi.fn()} />);
+    expect(screen.getByText("This idea already has an action: “Quarantine flaky tests”")).toBeInTheDocument();
+  });
+
+  test("no such note for an idea without actions", () => {
+    render(<ActionItems participantId={ME} retro={retro} draft={draft} onClearDraft={vi.fn()} />);
+    expect(screen.queryByText(/already has/)).not.toBeInTheDocument();
+  });
+});
 
 describe("ActionItems", () => {
   test.each([

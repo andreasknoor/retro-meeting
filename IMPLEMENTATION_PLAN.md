@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.6** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.7** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -87,8 +87,8 @@ A sticky bar below the header contains:
   - `← Back` returns to the previous enabled phase (from Finished to the last phase); disabled before the start and in the first phase. **[DEFAULT]** The earlier phase restarts with its full planned duration. Ideas, pulse answers and actions are kept; going back to Vote reopens voting with the votes kept. **Going back before the Vote phase deletes all votes** (decision after v0.12): if there are votes, an inline warning ("Going back to Brainstorm deletes all votes.") must be confirmed first; the server refuses without that confirmation
   - `Start <next phase>` ends the current phase and starts the next one with its planned duration
   - `+1 min` extends the current phase
-  - `End early` ends the current phase without starting the next one; the timer stops and the bar shows `Start <next phase>`
-  - `Reset` sets the retro back to `not_started` but keeps all data (asks for confirmation inline, not in a browser dialog)
+  - `Pause` / `Resume` (v1.7, replaced `End early`): Pause stops the timer and keeps the remaining time (`Paused 03:12`, negative in overtime); Resume continues from it. `+1 min` also works while paused. Timers stopped with the old `End early` count as paused at 00:00
+  - `Reset` sets the retro back to `not_started` (asks for confirmation inline, not in a browser dialog). Ideas, pulse answers and actions stay; **votes are deleted** since v1.7, like going back before Vote, and the confirmation says so when there are any
 - **Locked for participants:** they see the timer and the stepper, plus the hint "Only the admin can switch phases." (v1.5; before: "The facilitator controls the phases.") and a **"Log in to control"** button that opens an inline password field (same login, lockout and session as the admin area). The server rejects phase mutations without a valid admin session ("Only the admin can switch phases.").
 - **Presence (v1.6):** next to the timer, "N online" counts the people (browsers, not tabs) that have the retro open, via `@convex-dev/presence` (heartbeat every 10 s; a closed tab leaves at once, a lost connection after about 25 s). During Intro it adds how many have answered the pulse check, during Vote how many have voted.
 - **Sync model:** the server stores `phaseStartedAt` and `phaseDurationSec`, and each client computes the remaining time itself. No server-side ticking is needed, and clients stay in sync up to differences in device clocks. These differences are compensated by a server-time offset measured when the page loads.
@@ -109,20 +109,21 @@ A sticky bar below the header contains:
 - **Realtime:** new ideas appear for everyone immediately.
 - **Order:**
   - before the Vote phase: by creation time (oldest first)
-  - from the Vote phase on: by vote count (highest first), with ties broken by creation time; the top idea in each column gets a "Top in Keep" badge
+  - after the Vote phase (v1.7; before: from the Vote phase on): by vote count (highest first), with ties broken by creation time; the top idea in each column gets a "Top in Keep" badge
 - **Actions on each idea:**
-  - `Vote` / `✓ Voted`, enabled only during the Vote phase
-  - `Make action`, enabled **only in the Discuss phase** (outside it, the button is shown disabled with the tooltip "Available in the Discuss & Act phase")
-  - `Delete`, visible only to the idea's author (same `participantId`) or to an admin
+  - `Vote` / `✓ Voted`, shown only during the Vote phase; afterwards the count, with "· incl. yours" on your own votes
+  - `Make action`, shown **only in the Discuss phase** (v1.7: hidden instead of disabled with a tooltip; the board hint explains it). On an idea that already has an action it reads `+ Another action`, and the form names the existing action(s)
+  - `Delete`, visible only to the idea's author (same `participantId`) or to an admin, after an inline confirmation (v1.7) that warns when votes would be lost
 - **[DEFAULT]** You can add ideas in every phase, not only during Brainstorm, because "anyone can switch" makes strict phase locking unhelpful. Outside Brainstorm the input is visually de-emphasized.
 - **[DEFAULT]** Editing an idea is not in v1. Delete it and add it again instead.
+- **Finished (v1.7):** the board and the pulse check are read-only (server-enforced: `ideas.add`, the author's `ideas.remove`, `pulse.answer`). The admin can still delete ideas; actions stay editable and can be ticked off. A note says so and that `Back` reopens the retro.
 
 ### 4.6 Voting
 - **One vote per person per column** (so at most 3 votes per person).
 - Voting for an idea in a column where you already voted **moves** your vote. Tapping `✓ Voted` **takes the vote back**.
-- The vote count is visible to everyone. Who voted for what is never shown.
+- **v1.7:** vote counts stay hidden during the Vote phase (the server sends 0, only `votedByMe` is real), so late voters cannot follow the trend; they show once the phase is over. Who voted for what is never shown. The phase bar shows how many have voted (`votes.voterCount`).
 - A header indicator shows your remaining votes: `● ● ○ 1 of 3 votes left`, with one dot per column.
-- Voting is **locked outside the Vote phase**. The counts stay visible from the Vote phase onward.
+- Voting is **locked outside the Vote phase**. The counts stay visible after it.
 - **[DEFAULT]** You may vote for your own idea.
 - If the Vote phase is disabled, the vote counts and vote-based sorting are hidden.
 
@@ -137,6 +138,11 @@ A sticky bar below the header contains:
 - An action created from an idea links back to it: the idea shows an "→ Action" badge, and the action shows "from Fix: …".
 - Everyone can edit actions (inline); only the participant who added an action, or the admin, can delete it (v1.3), after an inline confirmation (v1.5).
 - The list is sorted by due date, then by creation time; actions without a due date come last.
+- **Done (v1.7):** a checkbox per action ticks it off for everyone (`actions.setDone`, like editing); done actions are struck through.
+
+### 4.7b Summary (v1.7)
+- In the `finished` state a "Summary" card at the top shows the pulse average, the top 3 ideas per column with votes and all actions with owner, due date and status.
+- `Copy as Markdown`, `Download .md` (`YYYY-MM-DD-<name>.md`) and `Print / PDF` (a print stylesheet prints only the card). The Markdown (all ideas by votes, pulse distribution, actions as `- [x]` checklist) comes from `lib/summary.ts`, built in the browser from the queries already loaded.
 - **v1.6:** each participant can add at most 20 actions per retro (checked per author, like ideas, so simultaneous adds don't conflict). The list shows at most 200 and says so when there are more.
 
 ### 4.8 Home page (no public overview)
@@ -157,7 +163,7 @@ A sticky bar below the header contains:
   - use a `New retro` shortcut
 - Admin sessions also enable `Delete` on every idea in the board.
 - **There is no password recovery.** If the password is lost, the retro can no longer be administered. This is shown clearly in the create form.
-- Brute-force protection: after 5 failed attempts per retro within 15 minutes, logins are blocked for 15 minutes.
+- Brute-force protection (v1.7): after 3 failed attempts in a row per retro (within 15 minutes, since the last success), each further attempt waits 10 s, 20 s, 40 s, … up to 2 minutes. Before v1.7, 5 failures locked the login for 15 minutes, which let anyone with the link lock the admin out.
 
 ### 4.10 Layout ("everything on one page")
 The retro page is a single vertically scrolling page with no tabs. It follows the general layout of the reference screenshots (coloured header, white cards on a light grey background, rounded buttons) but uses **neutral branding**: no company names, logos or corporate colours. The app has its own neutral name and palette, defined as design tokens so they are easy to change.
@@ -286,7 +292,7 @@ loginAttempts: defineTable({
 | | `create` | action → internal mutation | Hashes the password, generates the slug and the default agenda |
 | | `updateAgenda` | mutation | Admin token required |
 | | `remove` | mutation | Admin token; cascades in batches |
-| `phase.ts` | `startNext`, `extend`, `endEarly`, `reset` | mutation | Open to everyone; each validates the state transition |
+| `phase.ts` | `startNext`, `back`, `extend`, `pause`, `resume`, `reset` | mutation | Each takes the seen state (`from`); `back` / `reset` need `discardVotes` when votes would be deleted (`endEarly` replaced in v1.7) |
 | | `serverNow` | action | Clock offset for the timer (queries must not read the wall clock) |
 | `pulse.ts` | `summary` | query | Average, counts, the caller's own score |
 | | `answer` | mutation | Upsert per participant, score 1..5 |
@@ -295,7 +301,7 @@ loginAttempts: defineTable({
 | `votes.ts` | `toggle` | mutation | Only in the `vote` state; one per column |
 | | `voterCount` | query | Number of people who have voted (v1.6) |
 | `presence.ts` | `heartbeat`, `list`, `disconnect` | mutation / query | Wraps `@convex-dev/presence`; room = retro, user = participant (v1.6) |
-| `actions.ts` | `list`, `add`, `update`, `remove` | query / mutation | Owner required, due date optional and not in the past; `add` with `ideaId` only in Discuss |
+| `actions.ts` | `list`, `add`, `update`, `setDone`, `remove` | query / mutation | Owner required, due date optional and not in the past; `add` with `ideaId` only in Discuss |
 | `admin.ts` | `login` | action | scrypt verify, rate limit, issues the token |
 | | `logout`, `validate` | mutation / query | |
 | `crons.ts` | `purgeExpiredSessions` | cron (daily) | Cleans up sessions and login attempts |
@@ -428,6 +434,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] v1.4: live URL moved to https://retro-meeting.andreasknoor.com
 - [x] v1.5 (backlog items): pulse results hidden until you answer or the Intro phase is over; pulse question asks about the period, not the retro; the phase lock says "Only the admin can switch phases."; the board hint explains that ideas added during Vote may miss votes and those added later get none; action due dates are optional and cannot be in the past; deleting an action asks inline first. Agenda changes move the running phase's timer by the difference (keeping "+1 min" extensions), and header and agenda card show the actual agenda total. The admin agenda form shows changes from other tabs unless it has unsaved edits ("Unsaved changes", Discard; Save only when changed). `getBySlug` reads only the retro document (whether anyone voted comes from `ideas.list`); a vote flag on the retro was tried and dropped because the first votes all conflicted on it (load test). The board and the pulse card say when vote counts or answers are cut off at 3000 / 500
 - [x] v1.6 (backlog items): actions are capped per participant (20) instead of per retro, which removes the conflicts when many add actions at once (load test, 10 simultaneous adds: p95 from 1.6–3.5 s to 0.44 s); the action list says when it is cut off at 200. Presence: the phase bar shows how many are online and, during Intro / Vote, how many have answered / voted (`@convex-dev/presence`, ids never leave the server; load test: 30 joins p95 0.54 s, heartbeats p95 0.24 s)
+- [x] v1.7 (backlog items 1–10 without 8b): Reset deletes votes after a confirmation and ignores stale clicks; vote counts and ranking hidden during the Vote phase (server-side); a finished retro is read-only for ideas and the pulse check; deleting an idea asks inline and warns about lost votes; "Make action" only in Discuss, "+ Another action" on ideas that have one, with a note in the form; buttons that do nothing in the current phase are hidden instead of disabled with tooltips; `End early` replaced by Pause / Resume; actions can be ticked off; Summary card with Markdown copy / download and print; failed admin logins slow down (10 s … 2 min) instead of locking for 15 minutes
 
 **Total: about 9.5 working days.**
 
@@ -496,8 +503,7 @@ CI runs lint, typecheck, unit and backend tests on every pull request. E2E tests
 ## 14. Future Considerations (P1 / P2)
 
 **P1 (fast follow)**
-- Mark action items as done; show open actions of previous retros
-- Export a retro as Markdown or PDF (e.g. for Obsidian or Confluence)
+- Show open actions of previous retros (marking actions as done: v1.7)
 - Recovery code for the admin password
 - Edit your own idea
 

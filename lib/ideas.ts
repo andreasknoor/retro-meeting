@@ -1,4 +1,4 @@
-// Board ordering (§4.5): creation order until the Vote phase, then by votes (ties by creation).
+// Board ordering (§4.5): creation order until the Vote phase is over, then by votes (ties by creation).
 
 type Sortable = { voteCount: number; createdAt: number };
 
@@ -29,18 +29,19 @@ export function saveInitials(initials: string): void {
   }
 }
 
-type Votable = { id: string; column: string; voteCount: number; votedByMe: boolean };
+type Votable = { id: string; column: string; votedByMe: boolean };
 
-/** Mirrors votes.toggle for optimistic updates: cast, move within the column, or take back. */
+/**
+ * Mirrors votes.toggle for optimistic updates: cast, move within the column, or take back.
+ * Only `votedByMe` changes; counts are hidden while voting (v1.7).
+ */
 export function applyVoteToggle<T extends Votable>(ideas: readonly T[], ideaId: string): T[] {
   const target = ideas.find((i) => i.id === ideaId);
   if (!target) return [...ideas];
   const retract = target.votedByMe;
   return ideas.map((i) => {
-    if (i.id === ideaId) return { ...i, voteCount: i.voteCount + (retract ? -1 : 1), votedByMe: !retract };
-    if (!retract && i.column === target.column && i.votedByMe) {
-      return { ...i, voteCount: Math.max(0, i.voteCount - 1), votedByMe: false };
-    }
+    if (i.id === ideaId) return { ...i, votedByMe: !retract };
+    if (!retract && i.column === target.column && i.votedByMe) return { ...i, votedByMe: false };
     return i;
   });
 }

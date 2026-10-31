@@ -52,6 +52,7 @@ export function ActionItems({ retro, participantId, draft, onClearDraft, onAdmin
           participantId={participantId}
           draft={draft}
           onClearDraft={onClearDraft}
+          existing={draft ? (actions ?? []).filter((a) => a.idea?.id === draft.ideaId).map((a) => a.text) : []}
         />
         {actions && actions.length >= ACTION_LIMITS.perRetro && (
           <p role="status" className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
@@ -60,7 +61,7 @@ export function ActionItems({ retro, participantId, draft, onClearDraft, onAdmin
         )}
         <ul className="grid gap-2" aria-label="Actions">
           {actions?.map((action) => (
-            <ActionRow key={action.id} action={action} participantId={participantId} onAdminDelete={onAdminDelete} />
+            <ActionRow key={action.id} action={action} slug={retro.slug} participantId={participantId} onAdminDelete={onAdminDelete} />
           ))}
         </ul>
         {actions?.length === 0 && (
@@ -76,11 +77,14 @@ function ActionForm({
   participantId,
   draft,
   onClearDraft,
+  existing,
 }: {
   slug: string;
   participantId: string;
   draft: ActionDraft | null;
   onClearDraft: () => void;
+  /** Texts of the actions the draft's idea already has. */
+  existing: string[];
 }) {
   const add = useMutation(api.actions.add);
   const [text, setText] = useState(draft?.text.slice(0, ACTION_LIMITS.text) ?? "");
@@ -129,21 +133,33 @@ function ActionForm({
           </button>
         </p>
       )}
+      {existing.length > 0 && (
+        <p className="text-sm text-amber-800 dark:text-amber-300">
+          This idea already has {existing.length === 1 ? "an action" : `${existing.length} actions`}:{" "}
+          {existing.map((t) => `“${t}”`).join(", ")}
+        </p>
+      )}
     </form>
   );
 }
 
 function ActionRow({
   action,
+  slug,
   participantId,
   onAdminDelete,
 }: {
   action: ActionItem;
+  slug: string;
   participantId: string;
   onAdminDelete?: Props["onAdminDelete"];
 }) {
   const update = useMutation(api.actions.update);
   const remove = useMutation(api.actions.remove);
+  const setDone = useMutation(api.actions.setDone).withOptimisticUpdate((store, { actionId, done }) => {
+    const current = store.getQuery(api.actions.list, { slug, participantId });
+    if (current) store.setQuery(api.actions.list, { slug, participantId }, current.map((a) => (a.id === actionId ? { ...a, done } : a)));
+  });
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [text, setText] = useState(action.text);
@@ -204,9 +220,22 @@ function ActionRow({
 
   return (
     <li className="grid items-center gap-3 rounded-xl border-[1.5px] px-4 py-3 md:grid-cols-[1fr_12rem_8rem_auto]">
-      <div className="min-w-0">
-        <p className="font-semibold break-words">{action.text}</p>
-        {action.idea && <p className="text-xs text-muted-foreground">from {COLUMN_META[action.idea.column].label}</p>}
+      <div className="flex min-w-0 items-start gap-3">
+        <input
+          type="checkbox"
+          aria-label={`Done: ${action.text}`}
+          checked={action.done}
+          onChange={(e) => {
+            setDone({ actionId: action.id, done: e.target.checked }).catch((err: unknown) =>
+              toast.error(errorText(err, "Could not update the action.")),
+            );
+          }}
+          className="mt-1 size-4 shrink-0 accent-primary"
+        />
+        <div className="min-w-0">
+          <p className={cn("font-semibold break-words", action.done && "text-muted-foreground line-through")}>{action.text}</p>
+          {action.idea && <p className="text-xs text-muted-foreground">from {COLUMN_META[action.idea.column].label}</p>}
+        </div>
       </div>
       <div>
         <span className="block text-[11px] font-bold tracking-widest text-muted-foreground uppercase">Owner</span>

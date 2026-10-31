@@ -84,3 +84,14 @@ describe("pulse", () => {
     expect(await t.query(api.pulse.summary, { slug: "missing1", participantId: ALICE })).toBeNull();
   });
 });
+
+test("answers can't change once the retro is finished", async () => {
+  const { t, slug } = await setup();
+  await t.mutation(api.pulse.answer, { slug, participantId: ALICE, score: 4 });
+  await t.run(async (ctx) => {
+    const retro = (await ctx.db.query("retros").first())!;
+    await ctx.db.patch("retros", retro._id, { state: "finished" });
+  });
+  await expect(t.mutation(api.pulse.answer, { slug, participantId: ALICE, score: 2 })).rejects.toThrow("The retro is finished.");
+  expect((await t.query(api.pulse.summary, { slug, participantId: ALICE }))!.mine).toBe(4);
+});
