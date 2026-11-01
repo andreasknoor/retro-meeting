@@ -27,6 +27,9 @@ export const templateValidator = v.union(
   v.literal("mad_sad_glad"),
 );
 
+/** How the system stopped a forgotten retro (v1.16, convex/lib/autoStop.ts). */
+export const autoStopValidator = v.union(v.literal("paused"), v.literal("finished"));
+
 export const agendaValidator = v.object({
   checkin: v.number(),
   intro: v.number(),
@@ -68,7 +71,13 @@ export default defineSchema({
     template: v.optional(templateValidator),
     votesPerPerson: v.optional(v.number()), // votes to spend freely, at most one per idea
     icebreaker: v.optional(v.string()), // the check-in question; set when the Check-in phase is enabled
-  }).index("by_slug", ["slug"]),
+    // v1.16, forgotten retros (convex/autoStop.ts). Set by every phase command and agenda change:
+    controlledAt: v.optional(v.number()),
+    // Set when the system paused or finished the retro for inactivity; cleared by the next command.
+    autoStopped: v.optional(autoStopValidator),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_state", ["state"]),
 
   // One written check-in answer per participant (v1.13); changeable during the Check-in phase.
   checkinAnswers: defineTable({

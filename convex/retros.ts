@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { calcAgenda, fullAgenda, orderPhases } from "./lib/agenda";
-import { agendaValidator, phaseValidator, stateValidator, templateValidator } from "./schema";
+import { agendaValidator, autoStopValidator, phaseValidator, stateValidator, templateValidator } from "./schema";
 
 // The home page keeps at most 20 recent retros (lib/recentRetros.ts).
 export const MAX_RECENT_SLUGS = 20;
@@ -24,6 +24,7 @@ const publicRetroValidator = v.object({
   template: templateValidator,
   votesPerPerson: v.union(v.number(), v.null()),
   icebreaker: v.union(v.string(), v.null()),
+  autoStopped: v.union(autoStopValidator, v.null()),
 });
 
 // Never return the password hash or salt to clients.
@@ -45,6 +46,7 @@ function toPublic(r: Doc<"retros">) {
     template: r.template ?? "keep_fix_try",
     votesPerPerson: r.votesPerPerson ?? null,
     icebreaker: r.icebreaker ?? null,
+    autoStopped: r.autoStopped ?? null,
   };
 }
 

@@ -43,6 +43,7 @@ const base: Retro = {
   template: "keep_fix_try",
   votesPerPerson: null,
   icebreaker: null,
+  autoStopped: null,
 };
 
 const timer = () => screen.getByRole("timer");

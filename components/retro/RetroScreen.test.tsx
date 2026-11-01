@@ -57,6 +57,16 @@ describe("RetroScreen", () => {
     expect(screen.getByText(/ideas and the pulse check are read-only/)).toHaveTextContent("The admin can reopen it with Back.");
   });
 
+  test("says when the system paused or finished a forgotten retro", () => {
+    mockRetro({ ...retro, state: "brainstorm", pausedRemainingSec: -3700, autoStopped: "paused" });
+    const { rerender } = render(<RetroScreen slug="k7f3q9xa" />);
+    expect(screen.getByText(/Paused automatically/)).toHaveTextContent("The admin can resume it.");
+    mockRetro({ ...retro, state: "finished", autoStopped: "finished" });
+    rerender(<RetroScreen slug="k7f3q9xa" />);
+    expect(screen.queryByText(/Paused automatically/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Finished automatically after 24 hours without activity/)).toBeInTheDocument();
+  });
+
   test("shows the pulse check only when the intro phase is enabled", () => {
     mockRetro(retro);
     const { rerender } = render(<RetroScreen slug="k7f3q9xa" />);

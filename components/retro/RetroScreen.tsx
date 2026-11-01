@@ -51,8 +51,15 @@ export function RetroScreen({ slug }: { slug: string }) {
         {participantId && <PresenceStatus retro={retro} participantId={participantId} />}
       </PhaseBar>
       <main className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6">
+        {retro.autoStopped === "paused" && (
+          <p role="status" className="rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+            Paused automatically: the phase ran an hour over time with no activity.{" "}
+            {retro.adminControlsPhases && !admin ? "The admin can resume it." : "Use Resume to continue."}
+          </p>
+        )}
         {retro.state === "finished" && (
           <p role="status" className="rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+            {retro.autoStopped === "finished" && "Finished automatically after 24 hours without activity. "}
             Retro finished: ideas and the pulse check are read-only; actions can still be edited and ticked off.{" "}
             {retro.adminControlsPhases && !admin ? "The admin can reopen it with Back." : "Use ← Back to reopen it."}
           </p>

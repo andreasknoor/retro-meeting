@@ -11,6 +11,7 @@
 import type * as actions from "../actions.js";
 import type * as admin from "../admin.js";
 import type * as adminNode from "../adminNode.js";
+import type * as autoStop from "../autoStop.js";
 import type * as checkin from "../checkin.js";
 import type * as clock from "../clock.js";
 import type * as crons from "../crons.js";
@@ -18,6 +19,7 @@ import type * as health from "../health.js";
 import type * as ideas from "../ideas.js";
 import type * as lib_adminAuth from "../lib/adminAuth.js";
 import type * as lib_agenda from "../lib/agenda.js";
+import type * as lib_autoStop from "../lib/autoStop.js";
 import type * as lib_columns from "../lib/columns.js";
 import type * as lib_icebreakers from "../lib/icebreakers.js";
 import type * as lib_phases from "../lib/phases.js";
@@ -42,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   actions: typeof actions;
   admin: typeof admin;
   adminNode: typeof adminNode;
+  autoStop: typeof autoStop;
   checkin: typeof checkin;
   clock: typeof clock;
   crons: typeof crons;
@@ -49,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   ideas: typeof ideas;
   "lib/adminAuth": typeof lib_adminAuth;
   "lib/agenda": typeof lib_agenda;
+  "lib/autoStop": typeof lib_autoStop;
   "lib/columns": typeof lib_columns;
   "lib/icebreakers": typeof lib_icebreakers;
   "lib/phases": typeof lib_phases;

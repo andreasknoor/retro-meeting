@@ -6,6 +6,7 @@ import { deleteIdea } from "./ideas";
 import { fullAgenda, orderPhases } from "./lib/agenda";
 import { adminRetro, LOGIN_WINDOW_MS, loginDelaySec, requireAdmin, sha256Hex } from "./lib/adminAuth";
 import { findRetro } from "./lib/retroAccess";
+import { controlled } from "./phase";
 import { presence } from "./presence";
 import { agendaValidator } from "./schema";
 
@@ -110,6 +111,7 @@ export const updateAgenda = mutation({
     const inPhase = state !== "not_started" && state !== "finished";
     const deltaSec = inPhase ? (next[state] - fullAgenda(retro.agenda)[state]) * 60 : 0;
     await ctx.db.patch("retros", retro._id, {
+      ...controlled(),
       agenda: next,
       ...(inPhase && retro.phaseDurationSec !== undefined && {
         phaseDurationSec: Math.max(0, retro.phaseDurationSec + deltaSec),

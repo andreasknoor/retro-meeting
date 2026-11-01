@@ -32,13 +32,32 @@ async function discardAllVotes(ctx: MutationCtx, retroId: Id<"retros">, confirme
   for (const vote of votes) await ctx.db.delete("votes", vote._id);
 }
 
+/** Every phase command marks the retro as in use and lifts an automatic stop (convex/autoStop.ts). */
+export const controlled = () => ({ controlledAt: Date.now(), autoStopped: undefined });
+
 // Starting or returning to a phase always runs its timer from the full planned duration.
 const startPhase = (retro: Doc<"retros">, phase: keyof Doc<"retros">["agenda"]) => ({
+  ...controlled(),
   state: phase,
   phaseStartedAt: Date.now(),
   phaseDurationSec: fullAgenda(retro.agenda)[phase] * 60,
   pausedRemainingSec: undefined,
 });
+
+/** Stops a running timer and keeps the remaining time (negative when in overtime). */
+export const pausedTimer = (phaseStartedAt: number, phaseDurationSec: number, now: number) => ({
+  phaseStartedAt: undefined,
+  phaseDurationSec: undefined,
+  // Same rounding as the client's countdown (lib/timer.ts), so the clock doesn't jump.
+  pausedRemainingSec: Math.ceil(phaseDurationSec - (now - phaseStartedAt) / 1000),
+});
+
+export const finishedTimer = {
+  state: "finished",
+  phaseStartedAt: undefined,
+  phaseDurationSec: undefined,
+  pausedRemainingSec: undefined,
+} as const;
 
 export const startNext = mutation({
   args: { slug: v.string(), from: stateValidator, token: v.optional(v.string()) },
@@ -48,12 +67,7 @@ export const startNext = mutation({
     if (retro.state !== from || from === "finished") return null;
     const next = nextState(from, retro.enabledPhases);
     if (next === "finished" || next === "not_started") {
-      await ctx.db.patch("retros", retro._id, {
-        state: "finished",
-        phaseStartedAt: undefined,
-        phaseDurationSec: undefined,
-        pausedRemainingSec: undefined,
-      });
+      await ctx.db.patch("retros", retro._id, { ...controlled(), ...finishedTimer });
     } else {
       await ctx.db.patch("retros", retro._id, startPhase(retro, next));
     }
@@ -89,9 +103,9 @@ export const extend = mutation({
     const retro = await controllableRetro(ctx, slug, token);
     if (retro.state !== from || from === "not_started" || from === "finished") return null;
     if (retro.phaseStartedAt !== undefined && retro.phaseDurationSec !== undefined) {
-      await ctx.db.patch("retros", retro._id, { phaseDurationSec: retro.phaseDurationSec + 60 });
+      await ctx.db.patch("retros", retro._id, { ...controlled(), phaseDurationSec: retro.phaseDurationSec + 60 });
     } else {
-      await ctx.db.patch("retros", retro._id, { pausedRemainingSec: (retro.pausedRemainingSec ?? 0) + 60 });
+      await ctx.db.patch("retros", retro._id, { ...controlled(), pausedRemainingSec: (retro.pausedRemainingSec ?? 0) + 60 });
     }
     return null;
   },
@@ -104,12 +118,7 @@ export const pause = mutation({
   handler: async (ctx, { slug, from, token }) => {
     const retro = await controllableRetro(ctx, slug, token);
     if (retro.state !== from || retro.phaseStartedAt === undefined || retro.phaseDurationSec === undefined) return null;
-    await ctx.db.patch("retros", retro._id, {
-      phaseStartedAt: undefined,
-      phaseDurationSec: undefined,
-      // Same rounding as the client's countdown (lib/timer.ts), so the clock doesn't jump.
-      pausedRemainingSec: Math.ceil(retro.phaseDurationSec - (Date.now() - retro.phaseStartedAt) / 1000),
-    });
+    await ctx.db.patch("retros", retro._id, { ...controlled(), ...pausedTimer(retro.phaseStartedAt, retro.phaseDurationSec, Date.now()) });
     return null;
   },
 });
@@ -125,6 +134,7 @@ export const resume = mutation({
     const retro = await controllableRetro(ctx, slug, token);
     if (retro.state !== from || from === "not_started" || from === "finished" || retro.phaseStartedAt !== undefined) return null;
     await ctx.db.patch("retros", retro._id, {
+      ...controlled(),
       phaseStartedAt: Date.now(),
       phaseDurationSec: retro.pausedRemainingSec ?? 0,
       pausedRemainingSec: undefined,
@@ -142,6 +152,7 @@ export const reset = mutation({
     if (retro.state !== from || from === "not_started") return null;
     await discardAllVotes(ctx, retro._id, discardVotes === true, "Reset deletes all votes. Please confirm.");
     await ctx.db.patch("retros", retro._id, {
+      ...controlled(),
       state: "not_started",
       phaseStartedAt: undefined,
       phaseDurationSec: undefined,
@@ -164,7 +175,7 @@ export const setIcebreaker = mutation({
     if (retro.state !== "not_started" && retro.state !== "checkin") throw new ConvexError("The check-in is over.");
     const problem = icebreakerProblem(question);
     if (problem) throw new ConvexError(problem);
-    await ctx.db.patch("retros", retro._id, { icebreaker: question.trim() });
+    await ctx.db.patch("retros", retro._id, { ...controlled(), icebreaker: question.trim() });
     return null;
   },
 });
