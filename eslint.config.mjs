@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "convex/_generated/**",
+    // Local Convex backend for E2E (scripts/e2e-backend.mjs) with a copy of convex/.
+    ".e2e-backend/**",
     "mockups/**",
     "coverage/**",
     "playwright-report/**",

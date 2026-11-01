@@ -1,6 +1,6 @@
 # Retro Meeting App — Implementation Plan
 
-**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.14** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
+**Status:** ✅ Released as **v1.0** on 2026-10-30, current **v1.15** (M0–M8 done, acceptance checklist passed on production) · **Plan date:** 2026-10-29 · **Author:** Andreas Knoor (with Claude)
 
 > Nothing has been implemented yet. This document defines scope, architecture, data model and the build sequence. Items marked **[DEFAULT]** are assumptions I made where no decision exists yet. Please confirm or correct them (they are also listed in §12 Open Questions).
 
@@ -442,6 +442,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 - [x] v1.12: set when creating a retro (not changeable later): the **format** (Keep / Fix / Try, Start / Stop / Continue or Mad / Sad / Glad; always three columns with the keys `keep`/`fix`/`try`, only labels and questions change, `columnMeta(template)`), the **voting mode** (one vote per column, or 1–10 votes to spend freely with at most one per idea; `votes.toggle` reads only the caller's own votes) and an optional **check-in question** (needs Intro; random from a catalog of 40 in `convex/lib/icebreakers.ts`, or an own one). The check-in card shows before the start and during Intro; whoever may switch phases can draw another question or write their own (`phase.setIcebreaker`). During Brainstorm the phase bar shows how many have added ideas (`ideas.contributorCount`, no names). Load test with free votes: counts correct
 - [x] v1.13: **Check-in** is its own optional phase before Intro & Pulse (off by default; ticked like the other phases when creating a retro; 3 of 33 template minutes, so 3 min in a 30-minute retro). It needs a question: the form shows the drawn catalog question right away ("Another question" draws again) or takes an own one. During the phase the check-in card is highlighted and everyone writes a short answer (max. 140 characters, optional initials, one per person, changeable); others' answers show once you have answered or the phase is over (`checkin.list` / `checkin.answer`, table `checkinAnswers`). Whoever may switch phases can change the question until the phase is over. The phase bar shows how many have answered; the summary and the Markdown export list question and answers. Agendas stored before v1.13 have no `checkin` minutes (`fullAgenda()` fills in 0). Replaces the v1.12 check-in card that hung off Intro without input
 - [x] v1.14: A **phase change scrolls everyone** to the top of the highlighted card of the new phase (after Finish: the summary), smoothly unless the system asks for reduced motion; on wide screens it stops below the sticky phase bar. Only for changes while the page is open, not on load, pause or reset; focus and typed text stay. A second aim after 0.8 s catches content that grew above the card, unless the person has scrolled or typed meanwhile (`usePhaseChangeScroll` in `RetroScreen`, cards marked with `data-focus-area`)
+- [x] v1.15: **E2E runs cost no cloud database I/O.** The October usage (877 MB of the free 1 GB) came almost entirely from `ideas.list` on the dev deployment during load tests and E2E runs. `npm run test:e2e` now runs against a local Convex backend (`scripts/e2e-backend.mjs`: anonymous `convex dev` from `.e2e-backend/` with a copy of `convex/`, so `.env.local` stays on the cloud dev deployment; CSP allows the local backend only in such builds); CI runs the full suite that way on every push. After a production deployment only the 6 `@smoke` tests run there, desktop only; the full production run is a manual workflow start. `npm run test:e2e:cloud` keeps the old run against the dev deployment
 
 **Total: about 9.5 working days.**
 
@@ -449,7 +450,7 @@ The estimates assume one developer working with an AI pair. Each milestone ends 
 
 ## 10. Acceptance Checklist (release gate) — ✅ passed on production with v0.15
 
-Each item is covered by automated tests; the E2E suite runs against https://retro-meeting.andreasknoor.com after every deployment.
+Each item is covered by automated tests; the E2E suite runs against https://retro-meeting.andreasknoor.com after every deployment (since v1.15 only the @smoke tests; the full suite runs in CI against a local Convex backend).
 
 - [x] A retro can be created with all master data and opened via its link without logging in — `e2e/retro-lifecycle.spec.ts`
 - [x] There is no public list of retros; retros created or opened in this browser appear under "recent retros" on `/` — `e2e/retro-lifecycle.spec.ts`

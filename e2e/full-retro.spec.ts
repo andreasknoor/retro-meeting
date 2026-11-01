@@ -20,7 +20,7 @@ async function vote(page: Page, column: string, text: string) {
   await cards(page, column).filter({ hasText: text }).getByRole("button", { name: "+ Vote" }).click();
 }
 
-test("a complete retro with three participants through all phases", async ({ page: alex, browser, newRetro }) => {
+test("a complete retro with three participants through all phases", { tag: "@smoke" }, async ({ page: alex, browser, newRetro }) => {
   const url = await newRetro(alex);
   const bob = await joinAsGuest(browser, url);
   const carol = await joinAsGuest(browser, url);

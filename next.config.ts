@@ -6,13 +6,19 @@ const appVersion = pkg.version.split(".").slice(0, 2).join(".");
 
 // Next.js needs inline scripts and styles (no nonces, so pages stay prerenderable); everything
 // else is locked to this origin plus the Convex deployment. Dev mode also needs eval.
+// E2E builds talk to a local Convex backend (scripts/e2e-backend.mjs); allow only that origin.
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL ?? "";
+const localConvex = /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(convexUrl)
+  ? ` ${convexUrl} ${convexUrl.replace(/^http/, "ws")}`
+  : "";
+
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud",
+  `connect-src 'self' https://*.convex.cloud wss://*.convex.cloud${localConvex}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

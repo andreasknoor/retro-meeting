@@ -4,7 +4,7 @@ import { E2E_PASSWORD, joinAsGuest } from "./helpers";
 const keep = (p: import("@playwright/test").Page) => p.getByRole("region", { name: "Keep" }).getByRole("listitem");
 
 // The 5-attempt lockout is covered by convex/admin.test.ts; here it would block the cleanup.
-test("admin: auto-login, re-login, agenda times, delete any idea, delete retro live", async ({ page, browser, newRetro }) => {
+test("admin: auto-login, re-login, agenda times, delete any idea, delete retro live", { tag: "@smoke" }, async ({ page, browser, newRetro }) => {
   const name = `E2E admin ${Date.now()}`;
   const url = await newRetro(page, { name });
   const guest = await joinAsGuest(browser, url);

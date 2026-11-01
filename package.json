@@ -14,6 +14,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:cloud": "E2E_CONVEX=cloud playwright test",
+    "test:e2e:smoke": "playwright test --grep @smoke --project desktop",
+    "test:e2e:prod": "playwright test",
     "loadtest": "node scripts/loadtest.mjs"
   },
   "dependencies": {

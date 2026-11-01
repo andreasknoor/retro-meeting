@@ -1,9 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// E2E_BASE_URL set → test that deployment (CI runs against Vercel deployments).
-// Unset → build and start the app locally on port 3100 against the Convex dev deployment
-// from .env.local. A production build avoids dev-server compile delays under parallel tests.
+// Three targets:
+// - E2E_BASE_URL set → test that deployment (CI runs the @smoke tests against production).
+// - E2E_CONVEX=cloud → build and start the app locally against the Convex dev deployment from
+//   .env.local (uses up the cloud database I/O; only when the local backend can't reproduce something).
+// - Otherwise → build and start the app locally against a local Convex backend
+//   (scripts/e2e-backend.mjs), so test runs cost no cloud database I/O.
+// A production build on port 3100 avoids dev-server compile delays under parallel tests.
 const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:3100";
+const cloud = process.env.E2E_CONVEX === "cloud";
+// Must match E2E_CONVEX_URL in scripts/e2e-backend.mjs.
+const E2E_CONVEX_URL = "http://127.0.0.1:3210";
+const app = "npm run build && npx next start -p 3100";
 
 export default defineConfig({
   testDir: "e2e",
@@ -20,5 +28,17 @@ export default defineConfig({
   ],
   webServer: process.env.E2E_BASE_URL
     ? undefined
-    : { command: "npm run build && npx next start -p 3100", url: baseURL, reuseExistingServer: false, timeout: 240_000 },
+    : cloud
+      ? { command: app, url: baseURL, reuseExistingServer: false, timeout: 240_000 }
+      : [
+          { command: "node scripts/e2e-backend.mjs", url: "http://127.0.0.1:3209", reuseExistingServer: false, timeout: 240_000 },
+          {
+            command: app,
+            url: baseURL,
+            reuseExistingServer: false,
+            timeout: 240_000,
+            // Process env wins over .env.local, so the build talks to the local backend.
+            env: { NEXT_PUBLIC_CONVEX_URL: E2E_CONVEX_URL, NEXT_PUBLIC_CONVEX_SITE_URL: "http://127.0.0.1:3211" },
+          },
+        ],
 });

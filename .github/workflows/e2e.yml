@@ -1,9 +1,17 @@
 name: E2E
 
 # Vercel reports each deployment as a commit status ("Vercel"). Once a deployment of main
-# succeeds, production is live; test it there. Previews are behind Vercel Authentication.
+# succeeds, production is live; the @smoke tests check it there (desktop only, to keep
+# production database I/O low). The full suite runs in CI against a local Convex backend; run it
+# against production by hand with "Run workflow" and "full". Previews are behind Vercel Authentication.
 on:
   status:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Run the full suite (desktop + mobile) instead of the smoke tests
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -11,21 +19,22 @@ permissions:
 jobs:
   e2e:
     if: >-
+      github.event_name == 'workflow_dispatch' || (
       github.event.context == 'Vercel' &&
       github.event.state == 'success' &&
-      contains(github.event.branches.*.name, 'main')
+      contains(github.event.branches.*.name, 'main'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.sha }}
+          ref: ${{ github.event.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - run: npm run ${{ inputs.full && 'test:e2e:prod' || 'test:e2e:smoke' }}
         env:
           E2E_BASE_URL: https://retro-meeting.andreasknoor.com
       - uses: actions/upload-artifact@v4

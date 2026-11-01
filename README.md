@@ -38,10 +38,12 @@ If `npx`-spawned installs fail with `EALLOWSCRIPTS`, your user `.npmrc` sets `al
 |---|---|
 | `npm test` | Unit, component and Convex backend tests (Vitest, convex-test) |
 | `npm run test:coverage` | Same with coverage; fails below the gates (convex/ ≥ 90 %, lib/ ≥ 80 %) |
-| `npm run test:e2e` | Playwright on desktop + mobile against a local production build (port 3100) and the Convex dev deployment |
-| `npm run loadtest` | One complete retro with 30 simulated participants against the **dev** deployment |
+| `npm run test:e2e` | Playwright on desktop + mobile against a local production build (port 3100) and a **local Convex backend** (`scripts/e2e-backend.mjs`, anonymous mode, no account; needs Node 22 or 24, e.g. `brew install node@24`) |
+| `npm run test:e2e:smoke` | Only the `@smoke` tests, desktop only |
+| `npm run test:e2e:cloud` | Full suite against the Convex **dev** deployment from `.env.local`; uses up cloud database I/O |
+| `npm run loadtest` | One complete retro with 30 simulated participants against the **dev** deployment; costs a lot of database I/O, run only when needed |
 
-E2E tests delete every retro they create. CI runs lint, typecheck and coverage on every push; after each production deployment the E2E suite runs against https://retro-meeting.andreasknoor.com.
+E2E tests delete every retro they create. CI runs lint, typecheck, coverage and the full E2E suite against a local Convex backend on every push; after each production deployment the 6 `@smoke` tests run against https://retro-meeting.andreasknoor.com (desktop only). The full suite against production can be started by hand: Actions → E2E → Run workflow → "full". The free Convex plan has 1 GB database I/O per month; in October 2026 test runs against the dev deployment used up almost 90 % of it.
 
 ## Releases
 

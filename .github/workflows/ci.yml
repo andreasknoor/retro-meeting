@@ -32,3 +32,22 @@ jobs:
             console.log(["## Coverage", "| Metric | % | Covered |", "|---|---|---|",
               ...["lines", "statements", "functions", "branches"].map(row)].join("\n"));
           ' >> "$GITHUB_STEP_SUMMARY"
+
+  # Full E2E suite against a local Convex backend (scripts/e2e-backend.mjs): no cloud database I/O.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-local
+          path: playwright-report/
+          retention-days: 7

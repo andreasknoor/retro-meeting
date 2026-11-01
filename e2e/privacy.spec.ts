@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures";
 
 // Acceptance §10: nothing the browser receives reveals secrets or who wrote / voted / answered what.
-test("realtime traffic contains no secrets or other participants' ids", async ({ page, browser, newRetro }) => {
+test("realtime traffic contains no secrets or other participants' ids", { tag: "@smoke" }, async ({ page, browser, newRetro }) => {
   const url = await newRetro(page, { anyoneControlsPhases: true });
   await page.getByLabel("New idea for Keep").fill("Creator idea");
   await page.getByLabel("New idea for Keep").press("Enter");
